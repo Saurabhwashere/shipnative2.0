@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm install:*)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0 -name .env* -type f)",
+      "Bash(grep -r process.env. /Users/saurabhsingh/Desktop/shipnative2.0 --include=*.ts --include=*.tsx --include=*.js --include=*.jsx --exclude-dir=node_modules --exclude-dir=.next)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0 -maxdepth 3 -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\) ! -path */node_modules/* ! -path */.next/*)",
+      "Bash(grep:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/chat -H \"Content-Type: application/json\" -d '{\"\"\"\"messages\"\"\"\":[{\"\"\"\"id\"\"\"\":\"\"\"\"1\"\"\"\",\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"parts\"\"\"\":[{\"\"\"\"type\"\"\"\":\"\"\"\"text\"\"\"\",\"\"\"\"text\"\"\"\":\"\"\"\"Build a todo app\"\"\"\"}],\"\"\"\"createdAt\"\"\"\":\"\"\"\"2024-01-01\"\"\"\"}],\"\"\"\"projectFiles\"\"\"\":[]}' --max-time 20)",
+      "Bash(node:*)"
+    ]
+  }
+}

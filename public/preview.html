@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>Preview</title>
+
+    <!--
+      Import map: resolves bare specifiers used by user code and our mount script.
+      react-native-web uses ?external=react,react-dom so it shares the same
+      React instance instead of bundling its own.
+    -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react/": "https://esm.sh/react@18.2.0/",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+        "react-native": "https://esm.sh/react-native-web@0.19.13?external=react,react-dom",
+        "react-native-web": "https://esm.sh/react-native-web@0.19.13?external=react,react-dom"
+      }
+    }
+    </script>
+
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+      #root { display: flex; flex-direction: column; }
+
+      /* ── Status overlay ────────────────────────── */
+      #status-overlay {
+        position: fixed; inset: 0; z-index: 9998;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: #f9f9f9; gap: 10px;
+      }
+      #status-overlay.hidden { display: none; }
+      .status-spinner {
+        width: 24px; height: 24px;
+        border: 2.5px solid #e0e0e0;
+        border-top-color: #7c83f7;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      #status-text { font-family: system-ui, sans-serif; font-size: 12px; color: #8b8d97; }
+
+      /* ── Error overlay ─────────────────────────── */
+      #error-overlay {
+        position: fixed; inset: 0; z-index: 9999;
+        display: none; flex-direction: column;
+        background: #1a0a0a; padding: 20px 16px 16px;
+        overflow-y: auto;
+      }
+      #error-overlay.visible { display: flex; }
+      #error-title {
+        font-family: system-ui, sans-serif; font-size: 12px;
+        font-weight: 700; color: #f06a6a; margin-bottom: 10px;
+      }
+      #error-message {
+        font-family: 'Courier New', monospace; font-size: 11px;
+        color: #e4c4c4; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+      }
+      #error-stack {
+        font-family: 'Courier New', monospace; font-size: 10px;
+        color: #7a4444; margin-top: 10px; line-height: 1.5;
+        white-space: pre-wrap; word-break: break-all;
+      }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <!-- App mount point -->
+    <div id="root"></div>
+
+    <!-- Status overlay (shown while initialising) -->
+    <div id="status-overlay">
+      <div class="status-spinner"></div>
+      <span id="status-text">Starting preview engine…</span>
+    </div>
+
+    <!-- Runtime error overlay -->
+    <div id="error-overlay">
+      <div id="error-title">⚠ Runtime Error</div>
+      <pre id="error-message"></pre>
+      <pre id="error-stack"></pre>
+    </div>
+
+    <script type="module">
+      // ── Overlay helpers ───────────────────────────────────────────────────
+      const statusOverlay = document.getElementById('status-overlay');
+      const statusText    = document.getElementById('status-text');
+      const errorOverlay  = document.getElementById('error-overlay');
+      const errorMessage  = document.getElementById('error-message');
+      const errorStack    = document.getElementById('error-stack');
+
+      function showStatus(msg) {
+        statusText.textContent = msg;
+        statusOverlay.classList.remove('hidden');
+      }
+      function hideStatus() {
+        statusOverlay.classList.add('hidden');
+      }
+      function showError(err) {
+        hideStatus();
+        const msg = err?.message || String(err);
+        const stack = err?.stack ? err.stack.replace(err.message, '').trim() : '';
+        errorMessage.textContent = msg;
+        errorStack.textContent   = stack;
+        errorOverlay.classList.add('visible');
+        // Report to parent shell for the external error banner
+        try { window.parent.postMessage({ type: 'preview-error', message: msg }, '*'); } catch (_) {}
+      }
+      function hideError() {
+        errorOverlay.classList.remove('visible');
+      }
+
+      // ── Global error traps ────────────────────────────────────────────────
+      window.onerror = (_msg, _src, _line, _col, err) => {
+        showError(err || new Error(_msg));
+        return true;
+      };
+      window.addEventListener('unhandledrejection', (e) => {
+        showError(e.reason || new Error('Unhandled promise rejection'));
+      });
+
+      // ── Service Worker helpers ────────────────────────────────────────────
+      async function waitForController() {
+        if (!('serviceWorker' in navigator)) {
+          throw new Error('Service Workers are not supported in this browser.\nPlease use Chrome, Firefox, or Edge.');
+        }
+        if (navigator.serviceWorker.controller) return;
+        await new Promise((resolve) => {
+          navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+        });
+      }
+
+      // ── React root (kept across HMR) ─────────────────────────────────────
+      let reactRoot = null;
+
+      async function mountApp() {
+        hideError();
+        const t = Date.now();
+
+        const [{ default: React }, { createRoot }, { default: App }] = await Promise.all([
+          import('react'),
+          import('react-dom/client'),
+          import(`/App.js?t=${t}`),
+        ]);
+
+        const container = document.getElementById('root');
+        if (!reactRoot) {
+          reactRoot = createRoot(container);
+        }
+        reactRoot.render(React.createElement(App));
+        console.log('[Preview] App rendered');
+      }
+
+      // Exposed so the parent pipeline can trigger a re-mount programmatically
+      window.__mountApp = mountApp;
+
+      // ── Initialise ────────────────────────────────────────────────────────
+      async function main() {
+        showStatus('Waiting for preview engine…');
+        await waitForController();
+        console.log('[Preview] Service Worker ready');
+
+        // Pre-warm react-native-web (big bundle, pay the cost now)
+        showStatus('Loading React…');
+        await import('react-native');
+        console.log('[Preview] React + RN Web loaded');
+
+        // Listen for HMR updates from the Service Worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'hmr-update') {
+            console.log('[Preview] HMR update — reloading');
+            window.location.reload();
+          }
+        });
+
+        // Mount the app
+        hideStatus();
+        await mountApp();
+      }
+
+      main().catch(showError);
+    </script>
+  </body>
+</html>
