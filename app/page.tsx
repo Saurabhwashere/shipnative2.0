@@ -94,7 +94,7 @@ export default function LandingPage() {
     <main className="relative h-screen w-full overflow-hidden bg-black">
       {/* Background video */}
       <MuxPlayer
-        playbackId="u4fB5sWJaVHQeiXAdAgv6aKj2WSMj3cSSmc4iFVGeMs"
+        playbackId={process.env.NEXT_PUBLIC_MUX_PLAYBACK_ID!}
         autoPlay="muted"
         loop
         muted
