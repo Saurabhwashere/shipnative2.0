@@ -45,9 +45,10 @@ function formatTime(ts: number): string {
 interface ChatPanelProps {
   className?: string;
   onBeforeSend?: (label: string) => void;
+  initialPrompt?: string;
 }
 
-export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelProps) {
+export default function ChatPanel({ className = '', onBeforeSend, initialPrompt }: ChatPanelProps) {
   const { vfs } = useVFS();
   const [input, setInput] = useState('');
   const [tasksExpanded, setTasksExpanded] = useState(true);
@@ -219,6 +220,14 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
     // once files have been written (see useEffect below).
   }, [status, sendMessage, onBeforeSend]);
 
+  // ── Auto-fire initial prompt from landing page ────────────────────────────
+  const initialPromptFiredRef = useRef(false);
+  useEffect(() => {
+    if (!initialPrompt || initialPromptFiredRef.current || status !== 'ready') return;
+    initialPromptFiredRef.current = true;
+    doSend(initialPrompt);
+  }, [initialPrompt, status, doSend]);
+
   // ── Element select-and-edit requests from the preview ────────────────────
   useEffect(() => {
     function handleElementEdit(e: Event) {
@@ -326,7 +335,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={`flex flex-col bg-[#0f1117] ${className}`}>
+    <div className={`flex flex-col bg-[#1c1c1c] ${className}`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -349,12 +358,12 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-glow-pulse"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(129,140,248,0.15) 0%, rgba(99,102,241,0.1) 100%)',
-                  border: '1px solid rgba(129,140,248,0.2)',
-                  boxShadow: '0 0 20px rgba(129,140,248,0.1)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  boxShadow: '0 0 20px rgba(255,255,255,0.05)',
                 }}
               >
-                <svg className="w-6 h-6 text-[#818cf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                 </svg>
               </div>
@@ -366,7 +375,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                 <button
                   key={chip.label}
                   onClick={() => doSend(chip.prompt)}
-                  className="px-3 py-2.5 rounded-xl bg-[#141620] border border-[#1f2133] hover:border-[#818cf8]/30 hover:bg-[#818cf8]/5 transition-all text-left"
+                  className="px-3 py-2.5 rounded-xl bg-[#2a2a2a] border border-[#3a3a3a] hover:border-white/20 hover:bg-white/5 transition-all text-left"
                 >
                   <p className="text-[10px] text-[--color-accent] font-medium uppercase tracking-wide mb-0.5">{chip.category}</p>
                   <p className="text-xs text-[--color-text-dim] leading-snug">{chip.label}</p>
@@ -411,11 +420,11 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                 <div
                   className="w-5 h-5 rounded-full shrink-0 mt-0.5 flex items-center justify-center"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(129,140,248,0.2) 0%, rgba(99,102,241,0.2) 100%)',
-                    border: '1px solid rgba(129,140,248,0.25)',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.1) 100%)',
+                    border: '1px solid rgba(255,255,255,0.15)',
                   }}
                 >
-                  <svg className="w-2.5 h-2.5 text-[#818cf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                   </svg>
                 </div>
@@ -491,20 +500,20 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
             <div
               className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, rgba(129,140,248,0.2) 0%, rgba(99,102,241,0.2) 100%)',
-                border: '1px solid rgba(129,140,248,0.25)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.1) 100%)',
+                border: '1px solid rgba(255,255,255,0.15)',
               }}
             >
-              <svg className="w-2.5 h-2.5 text-[#818cf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs" style={{ color: '#6b7080' }}>Working</span>
+              <span className="text-xs text-white/30">Working</span>
               <span className="flex gap-1 items-center">
-                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '0ms' }} />
-                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '150ms' }} />
-                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '300ms' }} />
+                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'rgba(255,255,255,0.3)', animationDelay: '0ms' }} />
+                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'rgba(255,255,255,0.3)', animationDelay: '150ms' }} />
+                <span className="w-1 h-1 rounded-full animate-bounce" style={{ backgroundColor: 'rgba(255,255,255,0.3)', animationDelay: '300ms' }} />
               </span>
             </div>
           </div>
@@ -528,7 +537,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                 <button
                   onClick={() => { clearError(); handleSend(); }}
                   className="text-[10px] font-medium transition-colors px-1.5 py-0.5 rounded"
-                  style={{ color: '#818cf8', background: 'rgba(129,140,248,0.1)' }}
+                  style={{ color: '#ffffff', background: 'rgba(255,255,255,0.1)' }}
                 >
                   Retry
                 </button>
@@ -550,7 +559,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
         <div className="mx-4 mb-1 animate-fade-in" style={{ paddingTop: 6 }}>
           <div
             className="flex items-center gap-2 px-2 py-1.5 rounded-xl"
-            style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)' }}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}
           >
             <img
               src={referenceImage.dataUrl}
@@ -597,7 +606,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
 
       {/* ── Tasks toggle panel — above input ── */}
       {showBuildProgress && approvedPlanSteps && (
-        <div style={{ borderTop: '1px solid #1f2133', background: 'rgba(25,27,40,0.7)' }}>
+        <div style={{ borderTop: '1px solid #3a3a3a', background: 'rgba(38,38,38,0.85)' }}>
           {/* Header */}
           <button
             className="w-full flex items-center gap-2 px-4 py-3 transition-colors text-left"
@@ -644,7 +653,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
 
           {/* Task rows */}
           {tasksExpanded && (
-            <div style={{ borderTop: '1px solid #1f2133' }}>
+            <div style={{ borderTop: '1px solid #3a3a3a' }}>
               {approvedPlanSteps.map((step, i) => {
                 const isDone = step.files.length === 0 || step.files.some((f) => writtenFiles.includes(f));
                 const isActive = isLoading && !isDone && approvedPlanSteps.findIndex(
@@ -655,8 +664,8 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                     key={step.id}
                     className="flex items-center px-4 py-3"
                     style={{
-                      borderBottom: '1px solid rgba(31,33,51,0.6)',
-                      background: isActive ? 'rgba(129,140,248,0.04)' : 'transparent',
+                      borderBottom: '1px solid rgba(58,58,58,0.6)',
+                      background: isActive ? 'rgba(255,255,255,0.03)' : 'transparent',
                     }}
                   >
                     {/* Status indicator */}
@@ -666,7 +675,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isActive ? (
-                        <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#818cf8' }} fill="none" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#ffffff' }} fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
@@ -689,12 +698,12 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
       )}
 
       {/* ── Input bar ── */}
-      <div style={{ borderTop: '1px solid #1f2133', padding: '12px 16px' }}>
+      <div style={{ borderTop: '1px solid #3a3a3a', padding: '12px 16px' }}>
         <div
           className="rounded-xl transition-all"
-          style={{ background: '#141620', border: '1px solid #1f2133' }}
-          onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(129,140,248,0.35)'; }}
-          onBlurCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#1f2133'; }}
+          style={{ background: '#2a2a2a', border: '1px solid #3a3a3a' }}
+          onFocusCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.2)'; }}
+          onBlurCapture={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#3a3a3a'; }}
         >
           <textarea
             ref={textareaRef}
@@ -707,7 +716,7 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
             className="w-full bg-transparent text-sm resize-none outline-none leading-relaxed disabled:opacity-60"
             style={{
               color: '#f0f0f5',
-              caretColor: '#818cf8',
+              caretColor: '#ffffff',
               padding: '14px 14px 6px',
               height: '64px',
               maxHeight: '168px',
@@ -717,25 +726,18 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
           {/* Bottom bar */}
           <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
             <div className="flex items-center gap-2">
-              {/* Attach */}
+              {/* Image upload */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 style={{ color: referenceImage ? 'var(--color-accent)' : '#3d4055' }}
-                onMouseEnter={e => (e.currentTarget.style.color = referenceImage ? '#a5b4fc' : '#6b7080')}
+                onMouseEnter={e => (e.currentTarget.style.color = referenceImage ? '#f0f0f5' : '#6b7080')}
                 onMouseLeave={e => (e.currentTarget.style.color = referenceImage ? 'var(--color-accent)' : '#3d4055')}
                 title="Attach design reference screenshot"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                </svg>
-              </button>
-              {/* Info */}
-              <button style={{ color: '#3d4055' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#6b7080')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#3d4055')}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <rect x="3" y="3" width="18" height="18" rx="3" ry="3" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="8.5" cy="8.5" r="1.5" strokeWidth={1.8} />
+                  <polyline points="21 15 16 10 5 21" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
@@ -758,13 +760,9 @@ export default function ChatPanel({ className = '', onBeforeSend }: ChatPanelPro
                   disabled={!input.trim() && !referenceImage}
                   className="flex items-center gap-1.5 px-3 h-7 rounded-lg text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{
-                    background: (input.trim() || referenceImage)
-                      ? 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)'
-                      : '#1f2133',
-                    color: 'white',
-                    boxShadow: (input.trim() || referenceImage)
-                      ? '0 0 10px rgba(129,140,248,0.25)'
-                      : 'none',
+                    background: (input.trim() || referenceImage) ? '#ffffff' : '#3a3a3a',
+                    color: (input.trim() || referenceImage) ? '#1c1c1c' : '#6b7080',
+                    boxShadow: 'none',
                   }}
                 >
                   Send

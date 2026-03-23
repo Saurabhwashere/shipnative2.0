@@ -42,7 +42,7 @@ export default function BuildProgress({ buildSteps, writtenFiles, isStreaming }:
             </div>
           ) : (
             <div
-              className="w-4 h-4 rounded-full border-2 border-[#1f2133] border-t-[#818cf8] animate-spin"
+              className="w-4 h-4 rounded-full border-2 border-[#1f2133] border-t-white animate-spin"
             />
           )}
           <span className="text-[11px] font-semibold text-[#f0f0f5]">
@@ -62,7 +62,7 @@ export default function BuildProgress({ buildSteps, writtenFiles, isStreaming }:
           className="h-full rounded-full relative overflow-hidden transition-all duration-500"
           style={{
             width: `${progressPct}%`,
-            background: 'linear-gradient(90deg, #818cf8 0%, #34d399 100%)',
+            background: 'linear-gradient(90deg, #ffffff 0%, #34d399 100%)',
           }}
         >
           {/* Shimmer on active */}
@@ -92,8 +92,8 @@ export default function BuildProgress({ buildSteps, writtenFiles, isStreaming }:
                   </div>
                 ) : isActive ? (
                   <div
-                    className="w-5 h-5 rounded-full bg-[#818cf8] animate-pulse flex items-center justify-center"
-                    style={{ boxShadow: '0 0 0 4px rgba(129,140,248,0.2)' }}
+                    className="w-5 h-5 rounded-full bg-white animate-pulse flex items-center justify-center"
+                    style={{ boxShadow: '0 0 0 4px rgba(255,255,255,0.15)' }}
                   >
                     <div className="w-2 h-2 rounded-full bg-white/70" />
                   </div>
@@ -116,7 +116,7 @@ export default function BuildProgress({ buildSteps, writtenFiles, isStreaming }:
               {/* File chip — first filename when active, else file count */}
               {step.files.length > 0 && (
                 <span className="ml-auto text-[9px] font-mono bg-[#141620] border border-[#1f2133] rounded px-1.5 py-0.5 shrink-0 truncate max-w-[80px]"
-                  style={{ color: isActive ? 'rgba(129,140,248,0.7)' : '#3d4055' }}
+                  style={{ color: isActive ? 'rgba(255,255,255,0.7)' : '#3d4055' }}
                 >
                   {isActive ? step.files[0] : `${step.files.length} file${step.files.length !== 1 ? 's' : ''}`}
                 </span>

@@ -93,12 +93,21 @@ function AskQuestionsCard({ part, onSend }: { part: DynamicToolUIPart; onSend?: 
     return (
       <div className="flex items-start gap-2 my-1.5 animate-fade-in">
         <div className="w-4 shrink-0" />
-        <div className="flex items-center gap-2.5 bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[--color-accent] rounded-2xl px-3 py-2 max-w-[90%]">
-          <svg className="w-3.5 h-3.5 shrink-0 text-[--color-accent]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div
+          className="flex items-center gap-2.5 rounded-2xl px-3.5 py-2 max-w-[90%]"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+        >
+          <svg className="w-3.5 h-3.5 shrink-0 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-xs text-[--color-text-body]">Thinking of questions…</span>
-          <ThinkingDots />
+          <span className="text-xs text-white/50">Thinking of questions…</span>
+          <ThinkingDots color="rgba(255,255,255,0.35)" />
         </div>
       </div>
     );
@@ -117,7 +126,15 @@ function AskQuestionsCard({ part, onSend }: { part: DynamicToolUIPart; onSend?: 
             answers={submittedAnswers ?? undefined}
           />
         ) : (
-          <div className="flex items-center gap-2 bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[--color-accent] rounded-2xl px-3 py-2 text-xs text-[--color-text-body]">
+          <div
+            className="flex items-center gap-2 rounded-2xl px-3.5 py-2 text-xs text-white/40"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
+          >
             <Check />
             Questions ready
           </div>
@@ -159,12 +176,21 @@ function ProposePlanCard({ part, onSend }: { part: DynamicToolUIPart; onSend?: (
     return (
       <div className="flex items-start gap-2 my-1.5 animate-fade-in">
         <div className="w-4 shrink-0" />
-        <div className="flex items-center gap-2.5 bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[--color-accent] rounded-2xl px-3 py-2 max-w-[90%]">
-          <svg className="w-3.5 h-3.5 shrink-0 text-[--color-accent]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div
+          className="flex items-center gap-2.5 rounded-2xl px-3.5 py-2 max-w-[90%]"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.09)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
+        >
+          <svg className="w-3.5 h-3.5 shrink-0 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <span className="text-xs text-[--color-text-body]">Building a plan…</span>
-          <ThinkingDots />
+          <span className="text-xs text-white/50">Building a plan…</span>
+          <ThinkingDots color="rgba(255,255,255,0.35)" />
         </div>
       </div>
     );
@@ -214,7 +240,14 @@ function WriteFileCard({ part }: { part: DynamicToolUIPart }) {
       <button
         onClick={handleClick}
         disabled={!path}
-        className="flex-1 max-w-[90%] text-left bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[--color-green-bright] rounded-2xl overflow-hidden hover:bg-[--color-hover] transition-colors disabled:pointer-events-none"
+        className="flex-1 max-w-[90%] text-left rounded-2xl overflow-hidden transition-all disabled:pointer-events-none"
+        style={{
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+        }}
       >
         <div className="flex items-center gap-2.5 px-3 py-2">
           <svg className="w-3.5 h-3.5 shrink-0 text-[--color-green-bright]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,7 +294,16 @@ function FixErrorCard({ part }: { part: DynamicToolUIPart }) {
   return (
     <div className="flex items-start gap-2 my-1.5 animate-fade-in">
       <div className="w-4 shrink-0" />
-      <div className="flex-1 max-w-[90%] bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[--color-amber-tool] rounded-2xl overflow-hidden">
+      <div
+        className="flex-1 max-w-[90%] rounded-2xl overflow-hidden"
+        style={{
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+        }}
+      >
         <div className="flex items-center gap-2.5 px-3 py-2">
           <svg className="w-3.5 h-3.5 shrink-0 text-[--color-amber-tool]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -297,7 +339,16 @@ function ReadFileCard({ part }: { part: DynamicToolUIPart }) {
   return (
     <div className="flex items-start gap-2 my-1 animate-fade-in">
       <div className="w-4 shrink-0" />
-      <div className="flex items-center gap-2 bg-[--color-tool-overlay] border border-[--color-tool-border] border-l-2 border-l-[#4a4a5a] rounded-2xl px-3 py-1.5 max-w-[90%]">
+      <div
+        className="flex items-center gap-2 rounded-2xl px-3 py-1.5 max-w-[90%]"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}
+      >
         <svg className="w-3 h-3 shrink-0 text-[#4a4a5a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -331,7 +382,15 @@ export default function ToolCallCard({ part, onSend }: ToolCallCardProps) {
       return (
         <div className="flex items-start gap-2 my-1 animate-fade-in">
           <div className="w-4 shrink-0" />
-          <div className="flex items-center gap-2 bg-[--color-tool-overlay] border border-[--color-tool-border] rounded-2xl px-3 py-1.5 text-[10px] text-[--color-text-body] font-mono max-w-[90%]">
+          <div
+            className="flex items-center gap-2 rounded-2xl px-3 py-1.5 text-[10px] text-white/30 font-mono max-w-[90%]"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+            }}
+          >
             {part.toolName}(…)
           </div>
         </div>

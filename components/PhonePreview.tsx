@@ -47,7 +47,7 @@ const INJECTED_CSS = `
 
 const SELECT_CSS = `
   .__sn_h {
-    outline: 2px solid rgba(129,140,248,0.85) !important;
+    outline: 2px solid rgba(255,255,255,0.7) !important;
     outline-offset: 2px !important;
     cursor: crosshair !important;
     border-radius: 3px !important;
@@ -197,7 +197,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   const displayError = previewError ?? iframeError;
 
   const loadingSlot = (
-    <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center bg-[#0f1117]">
+    <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center bg-[#1c1c1c]">
       {previewError ? (
         <>
           <div className="w-10 h-10 rounded-2xl bg-[--color-red]/10 flex items-center justify-center">
@@ -215,7 +215,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
           <div
             className="w-7 h-7 rounded-full"
             style={{
-              background: 'conic-gradient(from 0deg, #818cf8, #34d399, #818cf8)',
+              background: 'conic-gradient(from 0deg, #ffffff, #34d399, #ffffff)',
               animation: 'spin 1s linear infinite',
               mask: 'radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0)',
               WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0)',
@@ -242,10 +242,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   return (
     <div
       className={`flex flex-col items-center ${className}`}
-      style={{
-        background:
-          'radial-gradient(ellipse 640px 480px at center, var(--color-accent-glow), transparent 60%), var(--color-deep)',
-      }}
+      style={{ background: 'var(--color-deep)' }}
     >
       {/* Preview area */}
       <div className="flex-1 flex items-center justify-center w-full px-4 py-6 overflow-hidden">
@@ -254,7 +251,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
           {selectMode && (
             <div
               className="absolute inset-0 rounded-[52px] pointer-events-none z-10"
-              style={{ boxShadow: '0 0 0 2px rgba(129,140,248,0.6)', borderRadius: 52 }}
+              style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.4)', borderRadius: 52 }}
             />
           )}
           <IPhoneFrame mode={frameMode}>{isReady ? iframeSlot : loadingSlot}</IPhoneFrame>
@@ -263,12 +260,12 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
           {selectedEl && (
             <div
               className="absolute left-3 right-3 bottom-10 z-20 rounded-2xl overflow-hidden animate-fade-in"
-              style={{ background: 'rgba(15,17,23,0.96)', border: '1px solid rgba(129,140,248,0.3)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+              style={{ background: 'rgba(15,17,23,0.96)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
             >
               {/* Selected element label */}
               <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#818cf8] shrink-0" />
-                <span className="text-[10px] text-[#818cf8] font-medium truncate flex-1">{selectedEl.text || 'Element selected'}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                <span className="text-[10px] text-white font-medium truncate flex-1">{selectedEl.text || 'Element selected'}</span>
                 <button
                   onClick={() => { setSelectedEl(null); }}
                   className="text-[#3d4055] hover:text-[#6b7080] transition-colors shrink-0"
@@ -293,9 +290,9 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
                   onClick={handleSubmitPrompt}
                   disabled={!selectPrompt.trim()}
                   className="flex items-center justify-center w-7 h-7 rounded-lg transition-all disabled:opacity-30"
-                  style={{ background: selectPrompt.trim() ? 'linear-gradient(135deg, #818cf8, #6366f1)' : '#1f2133' }}
+                  style={{ background: selectPrompt.trim() ? '#ffffff' : '#1f2133' }}
                 >
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 text-[#1c1c1c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14m-7-7l7 7-7 7" />
                   </svg>
                 </button>
@@ -305,55 +302,65 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="w-full border-t border-[#1f2133] px-4 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+      {/* Floating iOS-style navbar */}
+      <div className="w-full flex justify-center pb-5 pt-2">
+        <div
+          className="flex items-center gap-1"
+          style={{
+            background: 'rgba(38,38,38,0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 20,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
+            padding: '7px 6px',
+          }}
+        >
+          {/* Status dot */}
+          <div className="flex items-center justify-center w-7 h-7">
             {displayError ? (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#f87171]" />
-                <span className="text-[11px] text-[#f87171]">Error</span>
-              </>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#f87171]" />
             ) : !isReady ? (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#6b7080] animate-pulse" />
-                <span className="text-[11px] text-[#6b7080]">Loading…</span>
-              </>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#6b7080] animate-pulse" />
             ) : (
-              <>
-                <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
-                <span className="text-[11px] text-[#6b7080]">Running</span>
-              </>
+              <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
             )}
           </div>
-          <div className="flex items-center rounded-full border border-[--color-border] bg-[--color-editor] p-1">
+
+          {/* Separator */}
+          <div className="w-px h-4 bg-white/[0.07] mx-0.5" />
+
+          {/* Device / Canvas toggle */}
+          <div className="flex items-center rounded-2xl bg-[#2a2a2a] p-0.5">
             <button
               onClick={() => setFrameMode('device')}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                frameMode === 'device' ? 'bg-[#edf1ff] text-[#111827]' : 'text-[--color-text-dim]'
+              className={`rounded-[14px] px-3 py-1 text-[11px] font-medium transition-colors ${
+                frameMode === 'device' ? 'bg-[#484848] text-[#f0f0f5]' : 'text-[#6b7080] hover:text-[#9a9a9a]'
               }`}
             >
               Device
             </button>
             <button
               onClick={() => setFrameMode('canvas')}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                frameMode === 'canvas' ? 'bg-[#edf1ff] text-[#111827]' : 'text-[--color-text-dim]'
+              className={`rounded-[14px] px-3 py-1 text-[11px] font-medium transition-colors ${
+                frameMode === 'canvas' ? 'bg-[#484848] text-[#f0f0f5]' : 'text-[#6b7080] hover:text-[#9a9a9a]'
               }`}
             >
               Canvas
             </button>
           </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* Select toggle */}
+
+          {/* Separator */}
+          <div className="w-px h-4 bg-white/[0.07] mx-0.5" />
+
+          {/* Select */}
           <button
             onClick={handleToggleSelect}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-xs font-medium transition-all"
             style={
               selectMode
-                ? { background: 'rgba(129,140,248,0.15)', border: '1px solid rgba(129,140,248,0.4)', color: '#a5b4fc' }
-                : { background: '#141620', border: '1px solid #1f2133', color: '#6b7080' }
+                ? { background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff' }
+                : { color: '#6b7080' }
             }
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,9 +368,11 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
             </svg>
             Select
           </button>
+
+          {/* Reload */}
           <button
             onClick={handleReload}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141620] hover:bg-[#1e2030] border border-[#1f2133] text-[#6b7080] hover:text-[#f0f0f5] text-xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[14px] text-[#6b7080] hover:text-[#f0f0f5] text-xs font-medium transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

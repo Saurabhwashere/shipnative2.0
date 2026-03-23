@@ -1,60 +1,190 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { SignInButton, UserButton, useAuth, useClerk } from '@clerk/nextjs';
+import { PromptBox } from '@/components/ui/chatgpt-prompt-input';
 
-// Skip SSR entirely for the editor shell — it's a pure client-side interactive app
-// (uses Service Workers, Babel CDN, browser APIs) so server rendering buys nothing
-// and causes hydration mismatches from timestamps and browser-only globals.
-const AppShell = dynamic(() => import('@/components/AppShell'), {
-  ssr: false,
-  loading: () => <div className="h-screen bg-[#0a0b0f]" />,
-});
+const NAV_LINKS = ['Pricing', 'Docs', 'Blog', 'Careers'];
 
-// The mobile fallback is pure markup — safe to server-render.
-const MobileFallback = () => (
-  <div className="flex lg:hidden h-screen items-center justify-center bg-[#0a0b0f] px-6">
-    <div className="text-center max-w-xs">
-      <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-        style={{
-          background: 'linear-gradient(135deg, rgba(129,140,248,0.15) 0%, rgba(99,102,241,0.1) 100%)',
-          border: '1px solid rgba(129,140,248,0.2)',
-          boxShadow: '0 0 24px rgba(129,140,248,0.1)',
-        }}
-      >
-        <svg className="w-7 h-7 text-[#818cf8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      </div>
-      <h2
-        className="font-bold text-xl mb-2"
-        style={{
-          background: 'linear-gradient(135deg, #818cf8 0%, #34d399 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-        }}
-      >
-        ShipNative
-      </h2>
-      <p className="text-[#f0f0f5] font-semibold text-sm mb-2">Desktop required</p>
-      <p className="text-[#6b7080] text-sm leading-relaxed">
-        ShipNative requires a desktop browser (1024px+) for the full IDE experience.
-      </p>
-    </div>
-  </div>
-);
-
-export default function Page() {
+function Navbar({ isSignedIn }: { isSignedIn: boolean | null | undefined }) {
   return (
-    <>
-      {/* Desktop: client-only, no SSR */}
-      <div className="hidden lg:block">
-        <AppShell />
-      </div>
+    <motion.nav
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="absolute top-6 left-1/2 z-20 -translate-x-1/2 w-full max-w-3xl px-4"
+    >
+      <div
+        className="flex items-center justify-between rounded-full px-5 py-3"
+        style={{
+          background: 'rgba(255,255,255,0.13)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          boxShadow: '0 2px 24px rgba(0,0,0,0.18)',
+        }}
+      >
+        {/* Logo */}
+        <span
+          className="text-xl text-white select-none italic"
+          style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.01em' }}
+        >
+          Shipnative
+        </span>
 
-      {/* Mobile: safe to SSR */}
-      <MobileFallback />
-    </>
+        {/* Links — hidden on mobile */}
+        <div className="hidden md:flex items-center gap-6">
+          {NAV_LINKS.map(link => (
+            <a
+              key={link}
+              href="#"
+              className="text-sm text-white/80 hover:text-white transition-colors font-medium"
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              {link}
+            </a>
+          ))}
+        </div>
+
+        {/* Auth */}
+        {isSignedIn ? (
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: 'w-8 h-8',
+              },
+            }}
+          />
+        ) : (
+          <SignInButton mode="modal">
+            <button
+              className="rounded-full px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+              style={{
+                background: 'rgba(0,0,0,0.85)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              Get started
+            </button>
+          </SignInButton>
+        )}
+      </div>
+    </motion.nav>
+  );
+}
+
+export default function LandingPage() {
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
+  const { openSignIn } = useClerk();
+
+  const handleSubmit = (prompt: string) => {
+    if (!prompt.trim()) return;
+    if (!isSignedIn) {
+      openSignIn();
+      return;
+    }
+    router.push(`/studio?prompt=${encodeURIComponent(prompt.trim())}`);
+  };
+
+  return (
+    <main className="relative h-screen w-full overflow-hidden bg-black">
+      {/* Background video */}
+      <video
+        src="/hero.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        disablePictureInPicture
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+
+      {/* Dark gradient overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.75) 100%)',
+        }}
+      />
+
+      {/* Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: 'inset 0 0 140px 60px rgba(0,0,0,0.7)' }}
+      />
+
+      {/* Grain overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.035]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '180px 180px',
+        }}
+      />
+
+      {/* Navbar */}
+      <Navbar isSignedIn={isSignedIn} />
+
+      {/* Centered content */}
+      <div className="relative z-10 flex h-full items-center justify-center px-4">
+        <div className="w-full max-w-2xl text-center">
+
+          {/* Title — Instrument Serif */}
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
+            className="mb-5 font-normal leading-[1.1] tracking-tight text-white italic"
+            style={{
+              fontFamily: 'var(--font-heading)',
+              textShadow: '0 2px 32px rgba(0,0,0,0.5)',
+              fontSize: 'clamp(3.5rem, 8vw, 4.8rem)',
+            }}
+          >
+            Shipnative
+          </motion.h1>
+
+          {/* Subtitle — Inter */}
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' }}
+            className="mb-10 text-base font-normal leading-relaxed text-white/55 sm:text-lg"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Build mobile apps with words
+          </motion.p>
+
+          {/* Prompt box */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3, ease: 'easeOut' }}
+          >
+            <PromptBox
+              placeholder="e.g. A fitness app that tracks workouts and suggests meals"
+              onSubmit={handleSubmit}
+            />
+          </motion.div>
+
+          {/* Hint */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.55 }}
+            className="mt-5 text-xs text-white/25"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Generates in seconds &nbsp;·&nbsp; React Native
+          </motion.p>
+
+        </div>
+      </div>
+    </main>
   );
 }

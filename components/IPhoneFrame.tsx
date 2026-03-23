@@ -9,11 +9,11 @@ export default function IPhoneFrame({ children, mode = 'device' }: IPhoneFramePr
   if (mode === 'canvas') {
     return (
       <div
-        className="relative overflow-hidden rounded-[38px] border border-white/[0.08] bg-black"
+        className="relative overflow-hidden rounded-[38px] border border-[#404040] bg-black"
         style={{
           width: 340,
           height: 700,
-          boxShadow: '0 36px 84px rgba(0,0,0,0.42), 0 0 0 1px rgba(255,255,255,0.05)',
+          boxShadow: '0 36px 84px rgba(0,0,0,0.42), 0 0 0 1px rgba(80,80,80,0.3)',
         }}
       >
         {children}
@@ -25,9 +25,9 @@ export default function IPhoneFrame({ children, mode = 'device' }: IPhoneFramePr
     <div className="relative select-none" style={{ width: 340, height: 700 }}>
       {/* Outer shell */}
       <div
-        className="absolute inset-0 rounded-[52px] bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0b] border border-white/[0.07]"
+        className="absolute inset-0 rounded-[52px] bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0b] border border-[#404040]"
         style={{
-          boxShadow: '0 40px 100px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.07)',
+          boxShadow: '0 40px 100px rgba(0,0,0,0.85), 0 0 0 1px rgba(80,80,80,0.35)',
         }}
       >
         {/* Side buttons */}
@@ -63,7 +63,7 @@ export default function IPhoneFrame({ children, mode = 'device' }: IPhoneFramePr
               top: 12,
               width: 126,
               height: 36,
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 0 1px #000',
+              boxShadow: 'inset 0 0 0 1px rgba(80,80,80,0.35), 0 0 0 1px #000',
             }}
           >
             {/* Front camera */}

@@ -1,33 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-deep:          #0a0b0f;
-  --color-panel:         #0f1117;
-  --color-editor:        #141620;
-  --color-hover:         #1e2030;
-  --color-border:        #1f2133;
-  --color-border-bright: #2e3148;
-  --color-surface:       #191b28;
+  --color-deep:          #1c1c1c;
+  --color-panel:         #222222;
+  --color-editor:        #2a2a2a;
+  --color-hover:         #333333;
+  --color-border:        #3a3a3a;
+  --color-border-bright: #464646;
+  --color-surface:       #2e2e2e;
   --color-text-primary:  #f0f0f5;
   --color-text-dim:      #6b7080;
-  --color-text-muted:    #3d4055;
-  --color-accent:        #818cf8;
-  --color-accent-glow:   rgba(129,140,248,0.15);
+  --color-text-muted:    #555555;
+  --color-accent:        #ffffff;
+  --color-accent-glow:   rgba(100,100,100,0.08);
   --color-green:         #34d399;
   --color-green-glow:    rgba(52,211,153,0.12);
   --color-amber:         #fbbf24;
   --color-red:           #f87171;
-  --color-blue:          #6366f1;
+  --color-blue:          #e8e8e8;
 
   --color-text-secondary: #d4d4d8;
-  --color-tool-overlay:   #1e2029;
-  --color-tool-border:    #2a2d3a;
+  --color-tool-overlay:   #272727;
+  --color-tool-border:    #3a3a3a;
   --color-text-body:      #8b8d97;
   --color-green-bright:   #43d9a2;
   --color-amber-tool:     #f0b052;
 
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-body), system-ui, sans-serif;
+  --font-serif: var(--font-heading), Georgia, serif;
 }
 
 * {
@@ -38,7 +39,7 @@ html,
 body {
   height: 100%;
   overflow: hidden;
-  background-color: #0a0b0f;
+  background-color: #1c1c1c;
   color: #f0f0f5;
   font-family: var(--font-sans);
 }
@@ -46,7 +47,7 @@ body {
 /* Thin scrollbar */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: #1f2133 transparent;
+  scrollbar-color: #3a3a3a transparent;
 }
 .scrollbar-thin::-webkit-scrollbar {
   width: 2px;
@@ -55,11 +56,11 @@ body {
   background: transparent;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: #1f2133;
+  background-color: #3a3a3a;
   border-radius: 2px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: #818cf8;
+  background-color: #f0f0f5;
 }
 .scrollbar-none {
   scrollbar-width: none;
@@ -69,9 +70,9 @@ body {
 }
 
 /* Gradient utilities */
-.gradient-panel { background: linear-gradient(135deg, #0f1117 0%, #0a0c14 100%); }
-.gradient-accent { background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%); }
-.glow-accent { box-shadow: 0 0 20px rgba(129,140,248,0.2); }
+.gradient-panel { background: linear-gradient(135deg, #222222 0%, #1a1a1a 100%); }
+.gradient-accent { background: linear-gradient(135deg, #f0f0f5 0%, #d0d0d5 100%); }
+.glow-accent { box-shadow: 0 0 20px rgba(255,255,255,0.1); }
 .glow-green { box-shadow: 0 0 16px rgba(52,211,153,0.15); }
 
 /* Glass utility */
@@ -114,8 +115,8 @@ body {
 
 /* Glow pulse for streaming indicator */
 @keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px rgba(129,140,248,0.3); }
-  50% { opacity: 1; box-shadow: 0 0 12px rgba(129,140,248,0.6); }
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px rgba(255,255,255,0.15); }
+  50% { opacity: 1; box-shadow: 0 0 12px rgba(255,255,255,0.3); }
 }
 .animate-glow-pulse {
   animation: glow-pulse 1.5s ease-in-out infinite;

@@ -112,7 +112,7 @@ interface ProjectSnapshot {
 }
 
 // ── Layout (inside providers, so it can use useVFS) ───────────────────────────
-function Layout() {
+function Layout({ initialPrompt }: { initialPrompt?: string }) {
   const { vfs } = useVFS();
   const [showEditor, setShowEditor] = useState(false);
   const [snapshots, setSnapshots] = useState<ProjectSnapshot[]>([]);
@@ -142,7 +142,7 @@ function Layout() {
   }, [snapshots, vfs]);
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0a0b0f] overflow-hidden">
+    <div className="flex flex-col h-screen w-screen bg-[#1c1c1c] overflow-hidden">
       <Header
         showEditor={showEditor}
         onToggleEditor={() => setShowEditor((v) => !v)}
@@ -156,16 +156,16 @@ function Layout() {
       <div className="flex flex-1 overflow-hidden">
         {/* Chat panel */}
         <div
-          className="flex flex-col border-r border-[--color-border-bright] shrink-0 transition-all duration-300"
+          className="flex flex-col border-r border-[#252525] shrink-0 transition-all duration-300"
           style={{ width: showEditor ? '30%' : '40%', minWidth: 320, maxWidth: 480 }}
         >
-          <ChatPanel className="flex-1 overflow-hidden" onBeforeSend={saveSnapshot} />
+          <ChatPanel className="flex-1 overflow-hidden" onBeforeSend={saveSnapshot} initialPrompt={initialPrompt} />
         </div>
 
         {/* Code editor (toggleable) */}
         {showEditor && (
           <div
-            className="flex flex-col border-r border-[--color-border-bright] animate-slide-in overflow-hidden"
+            className="flex flex-col border-r border-[#252525] animate-slide-in overflow-hidden"
             style={{ width: '35%', minWidth: 280 }}
           >
             <CodeEditor className="flex-1 overflow-hidden" />
@@ -185,7 +185,7 @@ function Layout() {
           onClick={() => setRestoreConfirm(null)}
         >
           <div
-            className="bg-[#191b28] border border-[#1f2133] rounded-2xl p-6 max-w-sm w-full mx-4"
+            className="bg-[#222222] border border-[#3a3a3a] rounded-2xl p-6 max-w-sm w-full mx-4"
             style={{ boxShadow: '0 32px 64px rgba(0,0,0,0.6)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -202,8 +202,8 @@ function Layout() {
               </button>
               <button
                 onClick={() => restoreSnapshot(restoreConfirm)}
-                className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-colors"
-                style={{ background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)' }}
+                className="px-3 py-1.5 rounded-lg text-[#1c1c1c] text-xs font-medium transition-colors"
+                style={{ background: '#ffffff' }}
               >
                 Restore
               </button>
@@ -215,11 +215,11 @@ function Layout() {
   );
 }
 
-export default function AppShell() {
+export default function AppShell({ initialPrompt }: { initialPrompt?: string }) {
   return (
     <VFSProvider initialFiles={INITIAL_FILES}>
       <PreviewProvider>
-        <Layout />
+        <Layout initialPrompt={initialPrompt} />
       </PreviewProvider>
     </VFSProvider>
   );

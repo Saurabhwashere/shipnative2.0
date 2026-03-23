@@ -207,9 +207,9 @@ export default function CodeEditor({ className = '' }: CodeEditorProps) {
           onClick={() => setActiveFile(node.path)}
           className={`relative flex items-center gap-1.5 text-left w-full transition-all ${
             isActive
-              ? 'bg-[#141620] text-[#f0f0f5] border-l-2 border-l-[#818cf8]'
+              ? 'bg-[#141620] text-[#f0f0f5] border-l-2 border-l-white'
               : 'text-[#6b7080] hover:text-[#f0f0f5] hover:bg-[#0f1117] border-l-2 border-l-transparent'
-          } ${isFlashing ? 'bg-[#818cf8]/5' : ''}`}
+          } ${isFlashing ? 'bg-white/5' : ''}`}
           style={{ paddingLeft: (depth + 1) * 12 + 4, paddingTop: 5, paddingBottom: 5, paddingRight: 8 }}
         >
           {/* File type icon */}
@@ -218,7 +218,7 @@ export default function CodeEditor({ className = '' }: CodeEditorProps) {
               <FileIcon extension={ext} {...(defaultStyles[ext] ?? {})} />
             ) : (
               <svg
-                className={`w-3.5 h-3.5 ${isFlashing ? 'text-[#34d399]' : isActive ? 'text-[#818cf8]' : 'text-[#3d4055]'}`}
+                className={`w-3.5 h-3.5 ${isFlashing ? 'text-[#34d399]' : isActive ? 'text-white' : 'text-[#3d4055]'}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -234,7 +234,7 @@ export default function CodeEditor({ className = '' }: CodeEditorProps) {
           </div>
           <span className="font-mono text-[11px] truncate">{node.name}</span>
           {isFlashing && (
-            <span className="absolute inset-0 ring-1 ring-inset ring-[#818cf8]/20 pointer-events-none" />
+            <span className="absolute inset-0 ring-1 ring-inset ring-white/15 pointer-events-none" />
           )}
         </button>
       );
@@ -319,7 +319,7 @@ export default function CodeEditor({ className = '' }: CodeEditorProps) {
             style={{
               fontFamily: 'var(--font-jetbrains, "JetBrains Mono", monospace)',
               tabSize: 2,
-              caretColor: '#818cf8',
+              caretColor: '#ffffff',
             }}
           />
         </div>
