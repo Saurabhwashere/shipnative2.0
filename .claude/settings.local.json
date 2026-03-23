@@ -10,7 +10,8 @@
       "Bash(grep:*)",
       "Bash(curl -s -X POST http://localhost:3000/api/chat -H \"Content-Type: application/json\" -d '{\"\"\"\"messages\"\"\"\":[{\"\"\"\"id\"\"\"\":\"\"\"\"1\"\"\"\",\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"parts\"\"\"\":[{\"\"\"\"type\"\"\"\":\"\"\"\"text\"\"\"\",\"\"\"\"text\"\"\"\":\"\"\"\"Build a todo app\"\"\"\"}],\"\"\"\"createdAt\"\"\"\":\"\"\"\"2024-01-01\"\"\"\"}],\"\"\"\"projectFiles\"\"\"\":[]}' --max-time 20)",
       "Bash(node:*)",
-      "WebFetch(domain:21st.dev)"
+      "WebFetch(domain:21st.dev)",
+      "Bash(npm run:*)"
     ]
   }
 }

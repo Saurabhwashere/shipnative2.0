@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { SignInButton, UserButton, useAuth, useClerk } from '@clerk/nextjs';
 import { PromptBox } from '@/components/ui/chatgpt-prompt-input';
+import MuxPlayer from '@mux/mux-player-react';
 
 const NAV_LINKS = ['Pricing', 'Docs', 'Blog', 'Careers'];
 
@@ -92,14 +93,20 @@ export default function LandingPage() {
   return (
     <main className="relative h-screen w-full overflow-hidden bg-black">
       {/* Background video */}
-      <video
-        src="/hero.mp4"
-        autoPlay
+      <MuxPlayer
+        playbackId="u4fB5sWJaVHQeiXAdAgv6aKj2WSMj3cSSmc4iFVGeMs"
+        autoPlay="muted"
         loop
         muted
         playsInline
-        disablePictureInPicture
-        className="absolute inset-0 h-full w-full object-cover"
+        nohotkeys
+        style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%',
+          objectFit: 'cover', pointerEvents: 'none',
+          '--controls': 'none',
+          '--media-object-fit': 'cover',
+          '--media-object-position': 'center',
+        }}
       />
 
       {/* Dark gradient overlay */}

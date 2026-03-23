@@ -14,6 +14,7 @@
     "@ai-sdk/anthropic": "^3.0.58",
     "@ai-sdk/react": "^3.0.118",
     "@clerk/nextjs": "^7.0.6",
+    "@mux/mux-player-react": "^3.11.6",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.8",

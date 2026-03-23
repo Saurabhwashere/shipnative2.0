@@ -109,7 +109,7 @@ const MicIcon = (p: React.SVGProps<SVGSVGElement>) => (
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export interface PromptBoxProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface PromptBoxProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onSubmit'> {
   onSubmit?: (value: string) => void;
 }
 

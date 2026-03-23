@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 // Skip SSR entirely for the editor shell — it's a pure client-side interactive app
 // (uses Service Workers, Babel CDN, browser APIs) so server rendering buys nothing
@@ -46,7 +47,7 @@ const MobileFallback = () => (
   </div>
 );
 
-export default function Page() {
+function StudioContent() {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams.get('prompt') ?? undefined;
 
@@ -60,5 +61,13 @@ export default function Page() {
       {/* Mobile: safe to SSR */}
       <MobileFallback />
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-[#1c1c1c]" />}>
+      <StudioContent />
+    </Suspense>
   );
 }

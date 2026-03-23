@@ -31,24 +31,25 @@ export async function POST(req: Request) {
     askQuestions: dynamicTool({
       ...askQuestionsTool,
       // No server-side execution needed — client renders the QuestionCard
-      execute: async (args) => ({ success: true, questions: args.questions }),
+      execute: async (args: unknown) => ({ success: true, questions: (args as { questions: unknown }).questions }),
     }),
 
     proposePlan: dynamicTool({
       ...proposePlanTool,
       // No server-side execution needed — client renders the PlanCard
-      execute: async (args) => ({ success: true, plan: args }),
+      execute: async (args: unknown) => ({ success: true, plan: args }),
     }),
 
     writeFile: dynamicTool({
       ...writeFileTool,
       // Execute returns success — the CLIENT writes to VFS by observing tool input
-      execute: async (args) => ({ success: true, path: args.path, description: args.description }),
+      execute: async (args: unknown) => ({ success: true, path: (args as { path: string; description: string }).path, description: (args as { path: string; description: string }).description }),
     }),
 
     readFile: dynamicTool({
       ...readFileTool,
-      execute: async ({ path }) => {
+      execute: async (args: unknown) => {
+        const { path } = args as { path: string };
         const normalised = path.replace(/^\/+/, '');
         const file = (projectFiles as Array<{ path: string; content: string }> | null)?.find(
           (f) => f.path === normalised || f.path === path,
@@ -61,10 +62,10 @@ export async function POST(req: Request) {
     fixError: dynamicTool({
       ...fixErrorTool,
       // Client applies correctedCode to VFS by observing tool input (same pattern as writeFile)
-      execute: async (args) => ({
+      execute: async (args: unknown) => ({
         success: true,
-        filePath: args.filePath,
-        explanation: args.explanation,
+        filePath: (args as { filePath: string; explanation: string }).filePath,
+        explanation: (args as { filePath: string; explanation: string }).explanation,
       }),
     }),
   };
@@ -124,8 +125,12 @@ export async function POST(req: Request) {
       const existing = Array.isArray(msg.content)
         ? msg.content
         : [{ type: 'text' as const, text: msg.content as string }];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const existingTextParts = existing.filter((p) => p.type === 'text') as any[];
       modelMessages[lastUserIdx] = {
         ...msg,
+        role: 'user' as const,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         content: [
           {
             type: 'text' as const,
@@ -134,10 +139,10 @@ export async function POST(req: Request) {
           {
             type: 'image' as const,
             image: imageBuffer,
-            mimeType: refImage.mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+            mediaType: refImage.mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
           },
-          ...existing,
-        ],
+          ...existingTextParts,
+        ] as any,
       };
     }
   }
