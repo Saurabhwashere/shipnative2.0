@@ -84,7 +84,42 @@ self.addEventListener('fetch', (event) => {
         },
       }),
     );
+    return;
   }
+
+  // For .js module requests that originate from the preview iframe but aren't
+  // in the VFS yet (e.g. AI wrote App.js before WorkoutDetailScreen.tsx),
+  // return a stub error module instead of falling through to the network.
+  // Falling through returns HTML (Next.js 404) which breaks dynamic import.
+  const referer = event.request.referrer || '';
+  const isFromPreview = referer.includes('preview.html') || referer.includes('/preview');
+  const isJsModule = path.endsWith('.js') && !path.startsWith('/_next/') && !path.startsWith('/api/');
+
+  if (isFromPreview && isJsModule) {
+    const moduleName = path.split('/').pop() || path;
+    const errorCode = `
+import React from 'react';
+import { View, Text } from 'react-native';
+export default function MissingModule() {
+  return React.createElement(View, { style: { flex: 1, backgroundColor: '#1a0a0a', padding: 16, alignItems: 'center', justifyContent: 'center' } },
+    React.createElement(Text, { style: { color: '#f06a6a', fontSize: 12, fontWeight: '700', textAlign: 'center' } },
+      'Module not found: ${moduleName}\\nThe AI may still be generating this file.'
+    )
+  );
+}
+`.trim();
+    event.respondWith(
+      new Response(errorCode, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/javascript; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      }),
+    );
+    return;
+  }
+
   // All other requests fall through to the network (Next.js, CDN, etc.)
 });
 
