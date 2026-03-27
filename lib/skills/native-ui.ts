@@ -1,5 +1,4 @@
-export const NATIVE_UI_SKILL_PROMPT = `NATIVE UI SKILL — APPLY BEFORE WRITING FILES
-
+export const NATIVE_UI_SKILL = `
 ═══════════════════════════════════════════
 STEP 1 — CLASSIFY AND LOCK VISUAL IDENTITY
 ═══════════════════════════════════════════
@@ -39,11 +38,6 @@ RULE: Every nav bar and tab bar MUST use GlassView. No exceptions.
 Copy this component exactly into every app. Do NOT rewrite or simplify it.
 
 \`\`\`jsx
-import { View, StyleSheet } from 'react-native';
-
-// GlassView — liquid glass chrome for nav bars and tab bars.
-// Works in preview (CSS backdrop-filter) and on real devices.
-// tint: 'light' | 'dark'
 function GlassView({ tint = 'light', style, children }) {
   const bg = tint === 'dark'
     ? 'rgba(18,18,28,0.72)'
@@ -114,9 +108,8 @@ Nav bar patterns — pick ONE based on the locked category:
 
 All nav bar variants:
 - Wrap outermost View with GlassView (position absolute, top 0, left 0, right 0)
-- Nav bar total height: 88px max (padding 12 top + content + 12 bottom)
-- Content scrolls BENEATH — paddingTop 88 for MinimalNavBar/BrandNavBar/CompactNavBar,
-  paddingTop 110 for LargeTitleNavBar/SearchNavBar (large title + search bar need more room)
+- Content scrolls BENEATH — paddingTop 100 for MinimalNavBar/BrandNavBar,
+  paddingTop 140 for LargeTitleNavBar/SearchNavBar
 - Drill-in screens (detail, settings sub-page) → always CompactNavBar:
   fontSize 17, fontWeight '700', back chevron on the left
 
@@ -132,7 +125,7 @@ Tab bars:
 RULE: Every screen needs exactly 3 weight levels. Same-weight screens look like web pages.
 
 Hero tier    → fontSize 34-56, fontWeight '800', letterSpacing -1 to -2
-               Use for: screen titles, key metrics, stats, streaks, counts
+               Use for: key metrics, stats, streaks, counts — NOT screen titles
 Label tier   → fontSize 13-17, fontWeight '600', letterSpacing 0 to -0.1
                Use for: section headers, card titles, button labels, tab labels
 Body tier    → fontSize 13-16, fontWeight '400', letterSpacing 0
@@ -144,15 +137,15 @@ NEVER use a number: 400 600 700 — this causes a StyleSheet error.
 ─── SURFACE DEPTH MODEL ────────────────────
 
 Light theme surfaces:
-  Screen bg:   tinted near-white matching emotional register (see COLOR TOKENS)
+  Screen bg:   tinted near-white matching emotional register
   Cards:       #FFFFFF + borderWidth 1 + borderColor rgba(0,0,0,0.07)
-  Chrome:      GlassView tint='light' — rgba(255,255,255,0.68) + blur(20px)
+  Chrome:      GlassView tint='light' — rgba(255,255,255,0.68) + blur(24px)
 
 Dark theme surfaces:
   Screen bg:   deep dark matching emotional register (#0A0A0F to #0D1117)
   Cards:       COLORS.surface + borderWidth 1 + borderColor rgba(255,255,255,0.08)
                NO shadows on dark — they disappear. Borders only.
-  Chrome:      GlassView tint='dark' — rgba(18,18,28,0.72) + blur(20px)
+  Chrome:      GlassView tint='dark' — rgba(18,18,28,0.72) + blur(24px)
 
 ─── MOTION SYSTEM ──────────────────────────
 
@@ -173,13 +166,12 @@ Every screen follows this exact layer order from bottom to top:
       {/* all scrollable content */}
     </ScrollView>
     <TabBar ... />                                ← position absolute, bottom
-    <LargeTitleNavBar ... />                      ← position absolute, top
+    <NavBar ... />                                ← position absolute, top
     <FAB ... />                                   ← position absolute, bottom right
   </View>
 
 Never put TabBar, NavBar, or FAB inside the ScrollView.
-Never put TabBar, NavBar, or FAB inside a screen component —
-they belong in App.jsx only.
+They belong in App.jsx only — never inside a screen component.
 
 ─── EMPTY STATE RULES ──────────────────────
 
@@ -211,31 +203,23 @@ LAYOUT ANTI-PATTERNS:
   ✗ Nav bar inside ScrollView — must be position absolute outside
   ✗ Entire screen centered around one giant CTA button
   ✗ Landing page hero composition as the primary app screen
-  ✗ scrollContent paddingTop less than 120 when nav bar is present
+  ✗ scrollContent paddingTop less than 100 when nav bar is present
   ✗ scrollContent paddingBottom less than 110 when tab bar is present
-  ✗ Large colored header banner — any solid-color View block at the top of a screen
-    that acts as a decorative header section (height > 80, colored background).
-    The ONLY allowed top chrome is the GlassView nav bar. No banner sections.
-  ✗ Duplicating the screen title inside the scroll content when a nav bar already shows it
-  ✗ Hero sections with gradient or solid backgrounds at the top of screen content
-  ✗ Nav bar height taller than 88px (status bar + bar = ~88px max)
 
 STYLE ANTI-PATTERNS:
   ✗ fontWeight as number (700) instead of string ('700')
   ✗ Hardcoded hex values instead of COLORS tokens
   ✗ Generic indigo accent on non-productivity app
   ✗ Pure #F2F2F7 background on food, fitness, media, or social app
-  ✗ Any nav bar or tab bar that does not use the GlassView component defined above — solid backgrounds are banned
+  ✗ Any nav bar or tab bar that does not use the GlassView component defined above
   ✗ Rewriting GlassView inline instead of copying the canonical component
   ✗ Adding backgroundColor to a View that wraps GlassView (kills the glass effect)
   ✗ Heavy box shadows on dark theme cards
   ✗ All text elements at the same font weight
   ✗ LargeTitleNavBar on dashboard / fitness / finance / social / media / commerce / food / travel apps
-  ✗ Uppercase eyebrow label INSIDE the nav bar on any app category other than tasks/education
-  ✗ Hero metric, big stat, or key number placed inside the nav bar — these belong in the content area
-  ✗ Circular action buttons in the nav bar when the app category does not require top-level actions
-  ✗ App name or screen title displayed at large size (fontSize > 20) anywhere on screen — for dashboard/fitness/finance the title is ONLY in the compact nav bar at fontSize 17
-  ✗ Repeating the screen name ("Dashboard", "Savings", "Workout") as a large content-area heading — the content area hero must be a DATA POINT, not a label
+  ✗ Uppercase eyebrow label INSIDE the nav bar on any category other than tasks/education
+  ✗ App name or screen title at large size (fontSize > 20) for dashboard/fitness/finance
+  ✗ Repeating the screen name as a large content-area heading — hero must be a DATA POINT
 
 COMPONENT ANTI-PATTERNS:
   ✗ Blue underlined web links in native UI
@@ -245,240 +229,6 @@ COMPONENT ANTI-PATTERNS:
   ✗ useNativeDriver: false on any Animated call
   ✗ require() for imports — use ES import syntax only
   ✗ Alert() — broken in web preview, use inline UI state instead
-
-═══════════════════════════════════════════
-STEP 3b — PIXEL ART SKILL (canvas-based)
-═══════════════════════════════════════════
-
-When the user asks for pixel art, sprites, pixel characters, retro graphics,
-Aseprite-style art, or any 8-bit / 16-bit visual — use this system.
-Everything renders via HTML5 Canvas inside a <canvas> element using React useRef + useEffect.
-Zero external libraries. Zero image files. Works perfectly in the preview.
-
-─── CORE PRIMITIVES ──────────────────────
-
-SC = scale multiplier (3 = each virtual pixel → 3×3 real pixels, 4 for bigger sprites)
-
-\`\`\`js
-const SC = 3;
-
-// Draw one virtual pixel
-function px(ctx, x, y, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x * SC, y * SC, SC, SC);
-}
-
-// Draw a filled rectangle in virtual pixels
-function rect(ctx, x, y, w, h, color) {
-  ctx.fillStyle = color;
-  ctx.fillRect(x * SC, y * SC, w * SC, h * SC);
-}
-\`\`\`
-
-─── SPRITE DEFINITION SYSTEM ────────────
-
-Define sprites as 2D string arrays. Each character maps to a color.
-'.' = transparent (skip). Any other character = a color key.
-
-\`\`\`js
-// Color palette — single character keys
-const PAL = {
-  H: '#2a1505', // hair / dark
-  S: '#f0c890', // skin
-  E: '#1a0a00', // eyes
-  B: '#2255aa', // shirt / body
-  P: '#112255', // pants / legs
-  X: '#111111', // shoes / dark accent
-  R: '#cc3333', // red accent
-  G: '#33aa55', // green accent
-  W: '#ffffff', // white highlight
-};
-
-// Sprite frame — array of strings, each string = one row of pixels
-const SPRITE_IDLE = [
-  '..HH..',
-  '.SSSS.',
-  '.SSES.',
-  '..BB..',
-  '.BBBB.',
-  '.PPPP.',
-  'PP..PP',
-  'X....X',
-];
-
-// Draw a sprite frame at virtual position (cx, cy)
-function drawSprite(ctx, frame, cx, cy, palette) {
-  for (let r = 0; r < frame.length; r++) {
-    for (let c = 0; c < frame[r].length; c++) {
-      const ch = frame[r][c];
-      if (ch !== '.' && palette[ch]) px(ctx, cx + c, cy + r, palette[ch]);
-    }
-  }
-}
-\`\`\`
-
-─── ANIMATION SYSTEM ────────────────────
-
-Use requestAnimationFrame for smooth loops.
-Store frameIndex in a ref, advance by elapsed time.
-
-\`\`\`js
-export default function PixelSprite() {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false; // crisp pixels — ALWAYS set this
-
-    let raf;
-    let lastTime = 0;
-    let elapsed = 0;
-    const FRAME_MS = 150; // time per animation frame in ms
-    let frameIndex = 0;
-
-    function draw(now) {
-      const delta = now - lastTime;
-      lastTime = now;
-      elapsed += delta;
-      if (elapsed >= FRAME_MS) {
-        frameIndex = (frameIndex + 1) % FRAMES.length;
-        elapsed = 0;
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // draw background, sprites, etc.
-      drawSprite(ctx, FRAMES[frameIndex], 10, 10, PAL);
-
-      raf = requestAnimationFrame(draw);
-    }
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  // canvas size = virtual dimensions × SC
-  return (
-    <canvas
-      ref={canvasRef}
-      width={VW * SC}
-      height={VH * SC}
-      style={{ width: '100%', height: '100%', imageRendering: 'pixelated' }}
-    />
-  );
-}
-\`\`\`
-
-CRITICAL: always set imageRendering: 'pixelated' on the canvas style.
-CRITICAL: always set ctx.imageSmoothingEnabled = false before drawing.
-These two settings make the pixel art crisp. Without them it looks blurry.
-
-─── COMMON SPRITE PATTERNS ──────────────
-
-Character walk cycle (4 frames, swap leg/arm positions):
-  Frame 0 & 2: neutral pose  (legs together)
-  Frame 1:     left step     (left leg forward, right back)
-  Frame 3:     right step    (right leg forward, left back)
-
-Idle animation (2 frames, subtle breathing):
-  Frame 0: normal height
-  Frame 1: body 1px lower, head same (creates slight bob)
-
-Coin spin (4 frames, width compression):
-  Frame 0: full width  '####'
-  Frame 1: 75% width   '.##.'  (1px narrower each side)
-  Frame 2: 1px wide    '..#.'  (edge-on)
-  Frame 3: 75% width   '.##.'
-  Frame 4: full width  '####'
-
-Explosion (4-5 frames, expanding then fading):
-  Frame 0: single center pixel
-  Frame 1: small cross
-  Frame 2: medium starburst with gaps
-  Frame 3: large sparse ring
-  Frame 4: empty (loop ends)
-
-─── TILE MAP SYSTEM ─────────────────────
-
-For games and scenes with repeating tiles:
-
-\`\`\`js
-const TILE_SIZE = 16; // virtual pixels per tile
-
-const TILES = {
-  G: drawGrass,   // function (ctx, tx, ty) → draws one grass tile
-  W: drawWater,
-  R: drawRock,
-  '.': null,      // empty
-};
-
-const MAP = [
-  'GGGGGGGG',
-  'GGGWWGGG',
-  'GGWWWWGG',
-  'GGGGGGGG',
-];
-
-function drawMap(ctx) {
-  for (let row = 0; row < MAP.length; row++) {
-    for (let col = 0; col < MAP[row].length; col++) {
-      const fn = TILES[MAP[row][col]];
-      if (fn) fn(ctx, col * TILE_SIZE, row * TILE_SIZE);
-    }
-  }
-}
-\`\`\`
-
-─── PALETTE PRESETS ─────────────────────
-
-Game Boy (4 colors):
-  '#0f380f', '#306230', '#8bac0f', '#9bbc0f'
-
-NES (safe subset):
-  '#000000', '#fcfcfc', '#f83800', '#0058f8',
-  '#00a800', '#b8b8b8', '#787878', '#fcbc3c'
-
-PICO-8 (16 colors):
-  '#000000', '#1d2b53', '#7e2553', '#008751',
-  '#ab5236', '#5f574f', '#c2c3c7', '#fff1e8',
-  '#ff004d', '#ffa300', '#ffec27', '#00e436',
-  '#29adff', '#83769c', '#ff77a8', '#ffccaa'
-
-CGA (4 colors, magenta mode):
-  '#000000', '#ff55ff', '#55ffff', '#ffffff'
-
-─── REACT NATIVE WRAPPER ────────────────
-
-Since the preview runs React Native Web, use this wrapper to embed the canvas:
-
-\`\`\`js
-import { View } from 'react-native';
-
-// Wrap canvas in a View so it plays nicely with RN layout
-export default function PixelArtComponent({ width = 200, height = 200 }) {
-  const canvasRef = useRef(null);
-  // ... animation useEffect ...
-  return (
-    <View style={{ width, height }}>
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        style={{ width: '100%', height: '100%', imageRendering: 'pixelated', display: 'block' }}
-      />
-    </View>
-  );
-}
-\`\`\`
-
-─── ANTI-PATTERNS ───────────────────────
-
-  ✗ Using <Image> with a placeholder URL for pixel art — generate it in canvas
-  ✗ Forgetting imageRendering: 'pixelated' — art will look blurry
-  ✗ Forgetting ctx.imageSmoothingEnabled = false — same blurry result
-  ✗ Using large SC values (> 6) on full-screen canvases — too much memory
-  ✗ Defining sprite colors as inline strings instead of a named palette object
-  ✗ Calling cancelAnimationFrame in cleanup without storing the raf handle in a ref
 
 ═══════════════════════════════════════════
 STEP 4 — THE ONE FINAL QUESTION

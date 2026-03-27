@@ -11,7 +11,11 @@
       "Bash(curl -s -X POST http://localhost:3000/api/chat -H \"Content-Type: application/json\" -d '{\"\"\"\"messages\"\"\"\":[{\"\"\"\"id\"\"\"\":\"\"\"\"1\"\"\"\",\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"parts\"\"\"\":[{\"\"\"\"type\"\"\"\":\"\"\"\"text\"\"\"\",\"\"\"\"text\"\"\"\":\"\"\"\"Build a todo app\"\"\"\"}],\"\"\"\"createdAt\"\"\"\":\"\"\"\"2024-01-01\"\"\"\"}],\"\"\"\"projectFiles\"\"\"\":[]}' --max-time 20)",
       "Bash(node:*)",
       "WebFetch(domain:21st.dev)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git checkout:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0/app/api -type f -name \"*.ts\" -exec wc -l {} +)",
+      "Bash(cat:*)"
     ]
   }
 }

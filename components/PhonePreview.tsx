@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import IPhoneFrame from './IPhoneFrame';
 import { usePreview } from '@/contexts/PreviewContext';
+import { useVFS } from '@/contexts/VFSContext';
+import PixelVillage from './PixelVillage';
 
 interface PhonePreviewProps {
   className?: string;
@@ -78,6 +80,9 @@ const SELECT_JS = `
 
 export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   const { isReady, previewUrl, previewError, refreshPreview } = usePreview();
+  const { vfs } = useVFS();
+  const [showVillage, setShowVillage] = useState(true);
+  const [showNeonGlow, setShowNeonGlow] = useState(false);
   const [iframeError, setIframeError] = useState<string | null>(null);
   const [frameMode, setFrameMode] = useState<'device' | 'canvas'>('device');
   const [selectMode, setSelectMode] = useState(false);
@@ -88,6 +93,24 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   const selectPromptRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { selectModeRef.current = selectMode; }, [selectMode]);
+
+  // Hide village as soon as AI writes the first file to the VFS
+  useEffect(() => {
+    if (!showVillage) return;
+    const unsub = vfs.onChange(() => {
+      setShowVillage(false);
+    });
+    return unsub;
+  }, [vfs, showVillage]);
+
+  // Track build status from ChatPanel for neon glow
+  useEffect(() => {
+    function onBuildStatus(e: Event) {
+      setShowNeonGlow((e as CustomEvent<{ building: boolean }>).detail.building);
+    }
+    window.addEventListener('build-status', onBuildStatus);
+    return () => window.removeEventListener('build-status', onBuildStatus);
+  }, []);
 
   function injectSelectHandler(enable: boolean) {
     try {
@@ -244,9 +267,37 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
       className={`flex flex-col items-center ${className}`}
       style={{ background: 'var(--color-deep)' }}
     >
+      <style>{`
+        @keyframes neonCycle {
+          0%   { box-shadow: 0 0 18px 3px #00f5ff, 0 0 50px 12px #00f5ff44, 0 0 90px 24px #00f5ff18; }
+          25%  { box-shadow: 0 0 18px 3px #bf5fff, 0 0 50px 12px #bf5fff44, 0 0 90px 24px #bf5fff18; }
+          50%  { box-shadow: 0 0 18px 3px #ff2d78, 0 0 50px 12px #ff2d7844, 0 0 90px 24px #ff2d7818; }
+          75%  { box-shadow: 0 0 18px 3px #00ffb3, 0 0 50px 12px #00ffb344, 0 0 90px 24px #00ffb318; }
+          100% { box-shadow: 0 0 18px 3px #00f5ff, 0 0 50px 12px #00f5ff44, 0 0 90px 24px #00f5ff18; }
+        }
+        @keyframes neonFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
+
       {/* Preview area */}
       <div className="flex-1 flex items-center justify-center w-full px-4 py-6 overflow-hidden">
+        <div className="flex flex-col items-center">
         <div className="relative" style={{ filter: frameMode === 'device' ? 'drop-shadow(0 32px 64px rgba(0,0,0,0.58))' : 'none' }}>
+          {/* Neon glow — visible while tasks are pending */}
+          {showNeonGlow && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                inset: -2,
+                borderRadius: 54,
+                zIndex: 5,
+                animation: 'neonFadeIn 0.8s ease forwards, neonCycle 4s linear infinite',
+              }}
+            />
+          )}
+
           {/* Select mode ring */}
           {selectMode && (
             <div
@@ -254,7 +305,13 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
               style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.4)', borderRadius: 52 }}
             />
           )}
-          <IPhoneFrame mode={frameMode}>{isReady ? iframeSlot : loadingSlot}</IPhoneFrame>
+          <IPhoneFrame mode={frameMode}>
+            {showVillage && !displayError
+              ? <PixelVillage />
+              : isReady
+                ? iframeSlot
+                : loadingSlot}
+          </IPhoneFrame>
 
           {/* Selection action bar — floats over bottom of phone */}
           {selectedEl && (
@@ -300,10 +357,9 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Floating iOS-style navbar */}
-      <div className="w-full flex justify-center pb-5 pt-2">
+        {/* Floating iOS-style navbar — sits directly below the phone frame */}
+        <div className="flex justify-center" style={{ paddingTop: '52px' }}>
         <div
           className="flex items-center gap-1"
           style={{
@@ -379,6 +435,8 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
             </svg>
             Reload
           </button>
+        </div>
+        </div>
         </div>
       </div>
     </div>

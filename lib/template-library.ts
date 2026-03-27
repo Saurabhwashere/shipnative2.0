@@ -22,7 +22,7 @@ export const TEMPLATE_LIBRARY: TemplateManifest[] = [
     starterFiles: ['App.jsx', 'components/task-section.jsx'],
     description:
       'Light productivity baseline with grouped task sections, restrained empty states, and a native tab bar.',
-    visualSignature: 'Clean editorial white surfaces. Large display title at 34px 800 weight. Grouped list rows with hairline separators. Compact summary card below the title. Animated pill tab bar with glass blur. Circular action buttons in nav bar. Empty states are small and embedded — never full screen.',
+    visualSignature: 'Clean editorial white surfaces. Grouped list rows with hairline separators. Compact summary card in the content area. Animated pill tab bar with glass blur. Empty states are small and embedded — never full screen.',
     accentSuggestions: 'Slate blue #5856D6 for focus/GTD apps, coral #FF6B6B for habit trackers, sage green #52B788 for wellness tasks, amber #F59E0B for goal tracking',
   },
   {
@@ -35,7 +35,7 @@ export const TEMPLATE_LIBRARY: TemplateManifest[] = [
     starterFiles: ['App.jsx', 'components/product-card.jsx'],
     description:
       'Light retail shell with featured content, browsable sections, and commerce-oriented tabs.',
-    visualSignature: 'Warm white background #FAFAFA. Full-width featured hero card with dark overlay and white text. Product grid with rounded image placeholders (borderRadius 16), bold product name, muted price. Glass tab bar. Pill-shaped category filter chips in a horizontal scroll row.',
+    visualSignature: 'Warm white background #FAFAFA. Full-width featured hero card with dark overlay and white text. Product grid with rounded image placeholders (borderRadius 16), bold product name, muted price. Glass tab bar. Pill-shaped category filter chips in a horizontal scroll row below the search bar.',
     accentSuggestions: 'Warm terracotta #C2673A for fashion/lifestyle, electric blue #3B82F6 for tech retail, emerald #10B981 for sustainable/organic, gold #F59E0B for luxury',
   },
   {
@@ -48,7 +48,7 @@ export const TEMPLATE_LIBRARY: TemplateManifest[] = [
     starterFiles: ['App.jsx', 'components/metric-card.jsx'],
     description:
       'Dark data-rich layout for fitness, finance, or media apps where cards and charts carry the hierarchy.',
-    visualSignature: 'True dark background #0A0A0F. Hero metric at fontSize 52 fontWeight 800 in accent color. Supporting stats in a 2x2 card grid with thin borders and no shadows. Eyebrow label above the main title in muted uppercase. Segmented filter row below the title. Glass blur on any floating chrome.',
+    visualSignature: 'True dark background #0A0A0F. First visible content is a hero DATA card — a large number or percentage (fontSize 52, fontWeight 800, accent color). The screen/app name appears only in the compact nav bar at small size. Supporting stats in a 2x2 card grid with thin borders, no shadows. Glass blur on floating chrome.',
     accentSuggestions: 'Mint green #34D399 for fitness/health dashboards, electric blue #3B82F6 for finance/analytics, coral #FF6B6B for activity/sports, gold #FBBF24 for performance metrics',
   },
   {

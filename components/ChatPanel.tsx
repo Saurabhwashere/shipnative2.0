@@ -5,7 +5,6 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type DynamicToolUIPart, type TextUIPart } from 'ai';
 import { useVFS } from '@/contexts/VFSContext';
 import ToolCallCard from './ToolCallCard';
-import { findFloatingActionButtonIssues, findPinnedTabBarIssues } from '@/lib/layout-guards';
 
 function resizeImageToDataUrl(
   file: File,
@@ -31,6 +30,22 @@ function resizeImageToDataUrl(
 
 const MAX_AUTO_RETRIES = 3;
 
+// Generates a temporary App.jsx that renders a single screen in isolation.
+function makeScreenPreview(componentName: string, importPath: string): string {
+  return `import React from 'react';
+import { View } from 'react-native';
+import ${componentName} from './${importPath}';
+
+export default function App() {
+  return (
+    <View style={{ flex: 1 }}>
+      <${componentName} />
+    </View>
+  );
+}
+`;
+}
+
 const SUGGESTION_CHIPS = [
   { category: 'FITNESS', label: 'Workout tracker with charts', prompt: 'Build a fitness tracker app with workout logging and progress charts' },
   { category: 'PRODUCTIVITY', label: 'Todo list with categories', prompt: 'Build a todo list app with categories and priority levels' },
@@ -45,10 +60,12 @@ function formatTime(ts: number): string {
 interface ChatPanelProps {
   className?: string;
   onBeforeSend?: (label: string) => void;
+  onTurnComplete?: (messages: ReturnType<typeof useChat>['messages']) => void;
   initialPrompt?: string;
+  initialMessages?: { id: string; role: 'user' | 'assistant'; parts: { type: 'text'; text: string }[] }[];
 }
 
-export default function ChatPanel({ className = '', onBeforeSend, initialPrompt }: ChatPanelProps) {
+export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete, initialPrompt, initialMessages }: ChatPanelProps) {
   const { vfs } = useVFS();
   const [input, setInput] = useState('');
   const [tasksExpanded, setTasksExpanded] = useState(true);
@@ -60,12 +77,14 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
   const bottomRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const writtenToolCallsRef = useRef(new Set<string>());
+  const realAppWrittenRef = useRef(false); // true once AI writes the real App.jsx
   const autoRetryCountRef = useRef(0);
   const lastAutoErrorRef = useRef<string | null>(null);
   const [autoFixToast, setAutoFixToast] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskLabel, setEditingTaskLabel] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const msgTimestampsRef = useRef<Map<string, number>>(new Map());
-  const lastAutoLayoutFixRef = useRef<string | null>(null);
 
   // ── Stable VFS ref ────────────────────────────────────────────────────────
   const vfsRef = useRef(vfs);
@@ -100,6 +119,7 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
 
   const { messages, sendMessage, stop, status, error, clearError } = useChat({
     transport,
+    ...(initialMessages && initialMessages.length > 0 ? { messages: initialMessages as any } : {}),
     onToolCall({ toolCall }) {
       const tc = toolCall as { toolName: string; input: unknown; dynamic?: boolean };
       if (tc.toolName === 'writeFile') {
@@ -134,7 +154,22 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
           const input = tp.input as { path?: string; code?: string } | undefined;
           if (!input?.path || !input?.code) continue;
           writtenToolCallsRef.current.add(tp.toolCallId);
-          vfs.writeFile(input.path.replace(/^\/+/, ''), input.code);
+          const normalizedPath = input.path.replace(/^\/+/, '');
+          vfs.writeFile(normalizedPath, input.code);
+
+          // Progressive preview: wrap each screen in isolation until App.jsx is ready
+          const isApp = /^app\.(jsx?|tsx?)$/i.test(normalizedPath.split('/').pop() ?? '');
+          if (isApp) {
+            realAppWrittenRef.current = true;
+          } else if (!realAppWrittenRef.current) {
+            const fileName = normalizedPath.split('/').pop() ?? '';
+            const isComponent = /^[A-Z]/.test(fileName) && /\.(jsx?|tsx?)$/.test(fileName);
+            if (isComponent) {
+              const importName = fileName.replace(/\.(jsx?|tsx?)$/, '');
+              const importPath = normalizedPath.replace(/\.(jsx?|tsx?)$/, '');
+              vfs.writeFile('App.jsx', makeScreenPreview(importName, importPath));
+            }
+          }
         } else if (tp.toolName === 'fixError') {
           const input = tp.input as { filePath?: string; correctedCode?: string } | undefined;
           if (!input?.filePath || !input?.correctedCode) continue;
@@ -164,30 +199,6 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
     return () => window.removeEventListener('preview-error', handlePreviewError);
   }, [status, sendMessage]);
 
-  // ── Auto-fix invalid pinned tab and floating-action layouts ──────────────
-  useEffect(() => {
-    if (status !== 'ready') return;
-    const files = vfs.getAllFiles().map((file) => ({ path: file.path, content: file.content }));
-    const issues = [
-      ...findPinnedTabBarIssues(files),
-      ...findFloatingActionButtonIssues(files),
-    ];
-    if (issues.length === 0) return;
-
-    const [issue] = issues;
-    const signature = issues.map((entry) => `${entry.path}:${entry.message}`).join('|');
-    if (lastAutoLayoutFixRef.current === signature) return;
-
-    lastAutoLayoutFixRef.current = signature;
-    setAutoFixToast('Fixing pinned navigation/action layout…');
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setAutoFixToast(null), 4000);
-
-    sendMessage({
-      text:
-        `Layout bug in ${issue.path}: ${issue.message} Move persistent navigation or floating add/create actions outside the ScrollView so they stay pinned at the screen edge. Use absolute positioning for floating actions with bottom/right offsets, and increase scroll content bottom padding so the last items clear the fixed control and home indicator. Inspect the affected file and any shared screen wrappers, then use writeFile or fixError to correct the layout.`,
-    });
-  }, [messages, status, sendMessage, vfs]);
 
   // ── Smart auto-scroll ─────────────────────────────────────────────────────
   function handleScroll() {
@@ -199,6 +210,15 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
   useEffect(() => {
     if (isAtBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, status]);
+
+  // ── Notify parent when a turn completes so it can sync files + messages ───
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusRef.current !== 'ready' && status === 'ready') {
+      onTurnComplete?.(messages);
+    }
+    prevStatusRef.current = status;
+  }, [status, onTurnComplete, messages]);
 
   // ── Input handlers ────────────────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -212,7 +232,6 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
     if ((!text.trim() && !hasImage) || status === 'submitted' || status === 'streaming') return;
     autoRetryCountRef.current = 0;
     lastAutoErrorRef.current = null;
-    lastAutoLayoutFixRef.current = null;
     onBeforeSend?.(text.trim());
     sendMessage({ text: text.trim() || ' ' });
     // NOTE: do NOT clear referenceImage here — it must persist across all API calls
@@ -221,12 +240,16 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
   }, [status, sendMessage, onBeforeSend]);
 
   // ── Auto-fire initial prompt from landing page ────────────────────────────
+  // Only fires when there are NO existing messages — prevents re-sending on reload.
   const initialPromptFiredRef = useRef(false);
   useEffect(() => {
     if (!initialPrompt || initialPromptFiredRef.current || status !== 'ready') return;
+    if (messages.length > 0) return; // existing conversation restored — don't re-send
     initialPromptFiredRef.current = true;
+    // Clean up the ?prompt= from the URL so refresh doesn't re-trigger this
+    window.history.replaceState(null, '', window.location.pathname);
     doSend(initialPrompt);
-  }, [initialPrompt, status, doSend]);
+  }, [initialPrompt, status, doSend, messages.length]);
 
   // ── Element select-and-edit requests from the preview ────────────────────
   useEffect(() => {
@@ -332,6 +355,12 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
       (step) => step.files.length > 0 && !step.files.some((f) => writtenFiles.includes(f)),
     );
   }, [approvedPlanSteps, writtenFiles]);
+
+  // ── Broadcast build status so PhonePreview can drive neon glow ────────────
+  useEffect(() => {
+    const building = !!approvedPlanSteps && (pendingTasks.length > 0 || isLoading);
+    window.dispatchEvent(new CustomEvent('build-status', { detail: { building } }));
+  }, [approvedPlanSteps, pendingTasks.length, isLoading]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -659,36 +688,127 @@ export default function ChatPanel({ className = '', onBeforeSend, initialPrompt 
                 const isActive = isLoading && !isDone && approvedPlanSteps.findIndex(
                   (s) => s.files.length > 0 && !s.files.some((f) => writtenFiles.includes(f))
                 ) === i;
+                const isPending = !isDone && !isActive;
+                const isEditing = editingTaskId === step.id;
+                const canEdit = isPending && !isLoading;
+
                 return (
                   <div
                     key={step.id}
-                    className="flex items-center px-4 py-3"
+                    className="px-4 py-2.5"
                     style={{
                       borderBottom: '1px solid rgba(58,58,58,0.6)',
-                      background: isActive ? 'rgba(255,255,255,0.03)' : 'transparent',
+                      background: isActive ? 'rgba(255,255,255,0.03)' : isEditing ? 'rgba(255,255,255,0.02)' : 'transparent',
                     }}
                   >
-                    {/* Status indicator */}
-                    <div className="w-4 h-4 shrink-0 mr-2.5 flex items-center justify-center">
-                      {isDone ? (
-                        <svg className="w-3.5 h-3.5" style={{ color: '#34d399' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : isActive ? (
-                        <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#ffffff' }} fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : (
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#3d4055' }} />
-                      )}
-                    </div>
-                    <span
-                      className={`text-sm flex-1 ${isDone ? 'opacity-50 line-through' : ''}`}
-                      style={{ color: isDone ? 'var(--color-text-dim)' : isActive ? '#f0f0f5' : 'var(--color-text-secondary)' }}
-                    >
-                      {step.label}
-                    </span>
+                    {isEditing ? (
+                      /* ── Edit mode ── */
+                      <div className="flex flex-col gap-2">
+                        <textarea
+                          autoFocus
+                          value={editingTaskLabel}
+                          onChange={(e) => setEditingTaskLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              if (editingTaskLabel.trim()) {
+                                doSend(editingTaskLabel.trim());
+                                setEditingTaskId(null);
+                                setEditingTaskLabel('');
+                              }
+                            }
+                            if (e.key === 'Escape') {
+                              setEditingTaskId(null);
+                              setEditingTaskLabel('');
+                            }
+                          }}
+                          rows={2}
+                          className="w-full text-xs resize-none outline-none leading-relaxed rounded-lg px-3 py-2"
+                          style={{
+                            background: '#1c1c1c',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            color: '#f0f0f5',
+                            caretColor: '#ffffff',
+                          }}
+                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => { setEditingTaskId(null); setEditingTaskLabel(''); }}
+                            className="px-2.5 py-1 rounded-md text-[11px] transition-colors"
+                            style={{ color: '#6b7080', background: 'transparent' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#f0f0f5')}
+                            onMouseLeave={e => (e.currentTarget.style.color = '#6b7080')}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (editingTaskLabel.trim()) {
+                                doSend(editingTaskLabel.trim());
+                                setEditingTaskId(null);
+                                setEditingTaskLabel('');
+                              }
+                            }}
+                            disabled={!editingTaskLabel.trim()}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all disabled:opacity-40"
+                            style={{ background: '#ffffff', color: '#1c1c1c' }}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14m-7-7l7 7-7 7" />
+                            </svg>
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Normal row ── */
+                      <div className="group flex items-center gap-2.5">
+                        {/* Status indicator */}
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          {isDone ? (
+                            <svg className="w-3.5 h-3.5" style={{ color: '#34d399' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : isActive ? (
+                            <svg className="w-3.5 h-3.5 animate-spin" style={{ color: '#ffffff' }} fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#3d4055' }} />
+                          )}
+                        </div>
+
+                        <span
+                          className={`text-xs flex-1 leading-snug ${isDone ? 'opacity-50 line-through' : ''}`}
+                          style={{ color: isDone ? 'var(--color-text-dim)' : isActive ? '#f0f0f5' : 'var(--color-text-secondary)' }}
+                        >
+                          {step.label}
+                        </span>
+
+                        {/* Edit button — only on pending tasks when not loading */}
+                        {canEdit && (
+                          <button
+                            onClick={() => { setEditingTaskId(step.id); setEditingTaskLabel(step.label); }}
+                            className="shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors opacity-0 group-hover:opacity-100"
+                            style={{ color: '#3d4055' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#f0f0f5')}
+                            onMouseLeave={e => (e.currentTarget.style.color = '#3d4055')}
+                            title="Edit task"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        )}
+                        {/* Locked icon — when task is pending but AI is running */}
+                        {isPending && isLoading && (
+                          <svg className="w-3 h-3 shrink-0 opacity-30" style={{ color: '#6b7080' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

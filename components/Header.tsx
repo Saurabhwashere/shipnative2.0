@@ -65,7 +65,7 @@ export default function Header({
 
       {/* Left: Logo */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+        <a href="/" className="flex items-center gap-2 hover:opacity-75 transition-opacity">
           {/* Rocket icon */}
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center">
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none">
@@ -77,7 +77,7 @@ export default function Header({
           <span className="font-bold tracking-tight text-sm text-[--color-text-primary]">
             ShipNative
           </span>
-        </div>
+        </a>
       </div>
 
       {/* Right: History + Editor toggle + User */}
