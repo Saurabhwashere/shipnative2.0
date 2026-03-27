@@ -1,14 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { SignInButton, UserButton, useAuth, useClerk } from '@clerk/nextjs';
 import { PromptBox } from '@/components/ui/chatgpt-prompt-input';
 import MuxPlayer from '@mux/mux-player-react';
+import PricingModal from '@/components/PricingModal';
 
-const NAV_LINKS = ['Pricing', 'Docs', 'Blog', 'Careers'];
-
-function Navbar({ isSignedIn }: { isSignedIn: boolean | null | undefined }) {
+function Navbar({
+  isSignedIn,
+  onPricingClick,
+}: {
+  isSignedIn: boolean | null | undefined;
+  onPricingClick: () => void;
+}) {
   return (
     <motion.nav
       initial={{ opacity: 0, y: -16 }}
@@ -36,16 +42,27 @@ function Navbar({ isSignedIn }: { isSignedIn: boolean | null | undefined }) {
 
         {/* Links — hidden on mobile */}
         <div className="hidden md:flex items-center gap-6">
-          {NAV_LINKS.map(link => (
-            <a
-              key={link}
-              href="#"
-              className="text-sm text-white/80 hover:text-white transition-colors font-medium"
-              style={{ fontFamily: 'var(--font-body)' }}
-            >
-              {link}
-            </a>
-          ))}
+          <button
+            onClick={onPricingClick}
+            className="text-sm text-white/80 hover:text-white transition-colors font-medium bg-transparent border-none cursor-pointer"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Pricing
+          </button>
+          <a
+            href="/blog"
+            className="text-sm text-white/80 hover:text-white transition-colors font-medium"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Blog
+          </a>
+          <a
+            href="#"
+            className="text-sm text-white/80 hover:text-white transition-colors font-medium"
+            style={{ fontFamily: 'var(--font-body)' }}
+          >
+            Contact
+          </a>
         </div>
 
         {/* Auth */}
@@ -80,6 +97,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
+  const [pricingOpen, setPricingOpen] = useState(false);
 
   const handleSubmit = (prompt: string) => {
     if (!prompt.trim()) return;
@@ -135,7 +153,7 @@ export default function LandingPage() {
       />
 
       {/* Navbar */}
-      <Navbar isSignedIn={isSignedIn} />
+      <Navbar isSignedIn={isSignedIn} onPricingClick={() => setPricingOpen(true)} />
 
       {/* Centered content */}
       <div className="relative z-10 flex h-full items-center justify-center px-4">
@@ -179,19 +197,12 @@ export default function LandingPage() {
             />
           </motion.div>
 
-          {/* Hint */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.55 }}
-            className="mt-5 text-xs text-white/25"
-            style={{ fontFamily: 'var(--font-body)' }}
-          >
-            Generates in seconds &nbsp;·&nbsp; React Native
-          </motion.p>
 
         </div>
       </div>
+
+      {/* Pricing modal */}
+      <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} />
     </main>
   );
 }

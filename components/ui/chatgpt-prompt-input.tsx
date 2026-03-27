@@ -240,19 +240,6 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                    >
-                      <MicIcon className="h-4 w-4" />
-                      <span className="sr-only">Record voice</span>
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" showArrow>Record voice</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
                       disabled={!hasValue}
                       onClick={handleSubmit}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-all disabled:pointer-events-none"
