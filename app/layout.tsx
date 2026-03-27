@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   title: "ShipNative — Describe it. Ship it.",
   description:
     "Describe your mobile app in natural language. An AI agent builds it in real-time.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

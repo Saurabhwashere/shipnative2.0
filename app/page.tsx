@@ -33,12 +33,19 @@ function Navbar({
         }}
       >
         {/* Logo */}
-        <span
-          className="text-xl text-white select-none italic"
-          style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.01em' }}
-        >
-          Shipnative
-        </span>
+        <div className="flex items-center gap-2">
+          <img
+            src="/logo.png"
+            alt="Shipnative"
+            style={{ width: 22, height: 22, filter: 'invert(1)', opacity: 0.92 }}
+          />
+          <span
+            className="text-xl text-white select-none italic"
+            style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.01em' }}
+          >
+            Shipnative
+          </span>
+        </div>
 
         {/* Links — hidden on mobile */}
         <div className="hidden md:flex items-center gap-6">
