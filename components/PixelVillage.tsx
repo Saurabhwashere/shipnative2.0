@@ -170,8 +170,9 @@ export default function PixelVillage() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctxOrNull = canvas.getContext('2d');
+    if (!ctxOrNull) return;
+    const ctx = ctxOrNull;
 
     ctx.imageSmoothingEnabled = false;
     t0Ref.current = performance.now();
