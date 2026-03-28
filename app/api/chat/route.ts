@@ -269,7 +269,7 @@ export async function POST(req: Request) {
   const fileContext = buildFileContext(projectFiles, sanitizedMessages as any[], phase);
 
   const result = streamText({
-    model: anthropic('claude-haiku-4-5-20251001'),
+    model: anthropic('claude-sonnet-4-6'),
     system: SYSTEM_PROMPT + skillBlock + fileContext,
     messages: modelMessages,
     tools,
