@@ -15,7 +15,24 @@
       "Bash(git checkout:*)",
       "Bash(xargs ls:*)",
       "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0/app/api -type f -name \"*.ts\" -exec wc -l {} +)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:www.reactnative.run)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm show:*)",
+      "Bash(awk:*)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(d[''''name''''], d[''''type'''']\\) for d in data]\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:esm.reactnative.run)",
+      "Bash(curl -v -L --max-redirs 10 -s -o /tmp/esmsh_expo_blur.txt -w \"STATUS:%{http_code}\\\\nCONTENT_TYPE:%{content_type}\\\\nFINAL_URL:%{url_effective}\\\\nREDIRECT_COUNT:%{num_redirects}\\\\n\" \"https://esm.sh/expo-blur\")",
+      "Read(//tmp/**)",
+      "Bash(curl -v -s -o /tmp/rnrun_rn.txt -w \"STATUS:%{http_code}\\\\nCONTENT_TYPE:%{content_type}\\\\nFINAL_URL:%{url_effective}\\\\nREDIRECT_COUNT:%{num_redirects}\\\\n\" \"https://esm.reactnative.run/react-native\")",
+      "WebFetch(domain:reactnative.run)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0 -name *sucrase* -o -name *transform* -type f)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0/node_modules/sucrase -name *.ts -o -name *.tsx)",
+      "Bash(find /Users/saurabhsingh/Desktop/shipnative2.0/node_modules/sucrase -path */test* -name *.ts)"
     ]
   }
 }

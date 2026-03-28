@@ -8,6 +8,14 @@ export interface PersistedMessage {
   parts: { type: 'text'; text: string }[];
 }
 
+export interface PersistedMessageRow {
+  role: 'user' | 'assistant';
+  content?: string;
+  toolName?: string;
+  toolInput?: unknown;
+  toolResult?: unknown;
+}
+
 interface SnapshotMeta {
   id: string;
   label: string;
@@ -26,6 +34,36 @@ interface PersistenceState {
 }
 
 const ENABLED = process.env.NEXT_PUBLIC_ENABLE_PERSISTENCE === 'true';
+
+export function toPersistedMessageRows(messages: { role: string; parts: unknown[] }[]): PersistedMessageRow[] {
+  return messages.flatMap((message) => {
+    if (message.role !== 'user' && message.role !== 'assistant') return [];
+
+    const parts = message.parts as {
+      type: string;
+      text?: string;
+      toolName?: string;
+      input?: unknown;
+      output?: unknown;
+    }[];
+
+    const textContent = parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('')
+      .trim();
+
+    const toolPart = parts.find((part) => part.type === 'dynamic-tool' || part.type === 'tool-invocation');
+
+    return [{
+      role: message.role,
+      ...(textContent ? { content: textContent } : {}),
+      ...(toolPart?.toolName ? { toolName: toolPart.toolName } : {}),
+      ...(toolPart && toolPart.input !== undefined ? { toolInput: toolPart.input } : {}),
+      ...(toolPart && toolPart.output !== undefined ? { toolResult: toolPart.output } : {}),
+    }];
+  });
+}
 
 export function usePersistence(projectId?: string) {
   const [state, setState] = useState<PersistenceState>({
@@ -67,7 +105,12 @@ export function usePersistence(projectId?: string) {
         let initialMessages: PersistedMessage[] = [];
         if (conversation?.id) {
           const msgsRes = await fetch(`/api/conversations/${conversation.id}/messages`);
-          const dbMessages = msgsRes.ok ? await msgsRes.json() : [];
+          const msgsData = msgsRes.ok ? await msgsRes.json() : { messages: [] };
+          const dbMessages: any[] = Array.isArray(msgsData)
+            ? msgsData
+            : Array.isArray(msgsData?.messages)
+              ? msgsData.messages
+              : [];
 
           // Reconstruct AI SDK message format from DB rows
           initialMessages = dbMessages
@@ -148,28 +191,25 @@ export function usePersistence(projectId?: string) {
     async (messages: { id: string; role: string; parts: unknown[] }[]) => {
       if (!ENABLED || !state.conversationId) return;
 
-      const newMsgs = messages.filter((m) => !persistedMsgIdsRef.current.has(m.id));
+      const newMsgs = messages.filter(
+        (m) =>
+          !persistedMsgIdsRef.current.has(m.id) &&
+          (m.role === 'user' || m.role === 'assistant'),
+      );
       if (newMsgs.length === 0) return;
 
-      const rows = newMsgs.map((m) => {
-        const parts = m.parts as { type: string; text?: string; toolName?: string; input?: unknown; output?: unknown }[];
-        const textContent = parts.filter((p) => p.type === 'text').map((p) => p.text ?? '').join('');
-        const toolPart = parts.find((p) => p.type === 'dynamic-tool' || p.type === 'tool-invocation');
-        return {
-          role: m.role,
-          content: textContent,
-          toolName: toolPart?.toolName ?? null,
-          toolInput: toolPart?.input ?? null,
-          toolResult: toolPart?.output ?? null,
-        };
-      });
+      const rows = toPersistedMessageRows(newMsgs);
 
       try {
-        await fetch(`/api/conversations/${state.conversationId}/messages`, {
+        const res = await fetch(`/api/conversations/${state.conversationId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ messages: rows }),
         });
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          throw new Error(body || `Failed to persist messages (${res.status})`);
+        }
         newMsgs.forEach((m) => persistedMsgIdsRef.current.add(m.id));
       } catch (err) {
         console.error('[persistence] syncMessages failed:', err);

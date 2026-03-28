@@ -130,3 +130,19 @@ body {
 .animate-shimmer {
   animation: shimmer 1.8s ease-in-out infinite;
 }
+
+@keyframes build-label {
+  0%, 100% {
+    opacity: 0.72;
+    letter-spacing: 0.22em;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    letter-spacing: 0.28em;
+    transform: translateY(-1px);
+  }
+}
+.animate-build-label {
+  animation: build-label 1.8s ease-in-out infinite;
+}

@@ -7,25 +7,26 @@ import { useVFS } from './VFSContext';
 interface PreviewContextValue {
   pipeline: PreviewPipeline | null;
   isReady: boolean;
-  previewUrl: string;
+  previewUrl: string | null;
   previewError: string | null;
   refreshPreview: () => void;
+  registerIframe: (win: Window | null) => void;
 }
 
 const PreviewContext = createContext<PreviewContextValue | null>(null);
 
 export function PreviewProvider({ children }: { children: React.ReactNode }) {
   const { vfs } = useVFS();
-  const [isReady, setIsReady]       = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [isReady, setIsReady]           = useState(false);
+  const [previewUrl, setPreviewUrl]     = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const pipelineRef = useRef<PreviewPipeline | null>(null);
 
   useEffect(() => {
     const pipeline = new PreviewPipeline(vfs, {
-      onReady:   () => setIsReady(true),
+      onReady:   (url) => { setPreviewUrl(url); setIsReady(true); },
       onError:   (err) => setPreviewError(err.message),
-      onRefresh: () => setRefreshKey((k) => k + 1),
+      onRefresh: (url) => { setPreviewUrl(url); setPreviewError(null); setIsReady(true); },
     });
     pipelineRef.current = pipeline;
 
@@ -41,9 +42,8 @@ export function PreviewProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally run only once; vfs is a stable ref
 
-  const previewUrl = `/preview.html?v=${refreshKey}`;
-
-  const refreshPreview = () => setRefreshKey((k) => k + 1);
+  const refreshPreview = () => pipelineRef.current?.forceRefresh();
+  const registerIframe = (win: Window | null) => pipelineRef.current?.setTargetWindow(win);
 
   return (
     <PreviewContext.Provider
@@ -53,6 +53,7 @@ export function PreviewProvider({ children }: { children: React.ReactNode }) {
         previewUrl,
         previewError,
         refreshPreview,
+        registerIframe,
       }}
     >
       {children}

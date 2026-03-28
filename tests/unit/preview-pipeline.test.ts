@@ -1,217 +1,504 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VirtualFS } from '../../lib/vfs';
-import { PreviewPipeline } from '../../lib/preview-pipeline';
+import {
+  PreviewPipeline,
+  findFirstInvalidBundledModule,
+  rewriteSourceForSucraseCompatibility,
+} from '../../lib/preview-pipeline';
+import { buildApiRoutesEntry, createExpoWebPlugin } from '../../lib/reactnative-run-preview';
+import { BLANK_INDEX_SOURCE, BLANK_LAYOUT_SOURCE } from '../../lib/preview-placeholders';
 
-// Stub the browser-only transformer module
-vi.mock('../../lib/transformer', () => ({
-  loadBabel: vi.fn().mockResolvedValue(undefined),
-  transformCode: vi.fn().mockResolvedValue('/* transformed */'),
-  toJsPath: (p: string) => p.replace(/\.(tsx?|jsx)$/, '.js'),
-  normalizePath: (p: string) => p.replace(/^\/+/, ''),
-  makeErrorModule: vi.fn((msg: string) => `/* error: ${msg} */`),
-}));
+type WorkerMessage =
+  | { type: 'watch-ready'; code: string; apiBundle?: string | null }
+  | { type: 'watch-rebuild'; code: string; apiBundle?: string | null }
+  | {
+      type: 'hmr-update';
+      update: {
+        requiresReload: boolean;
+        updatedModules: Record<string, string>;
+        removedModules: string[];
+        reverseDepsMap?: Record<string, string[]>;
+      };
+      bundle: string;
+      apiBundle?: string | null;
+    }
+  | { type: 'error'; message: string }
+  | { type: 'idle' };
 
-import { transformCode, makeErrorModule } from '../../lib/transformer';
+let blobUrlCounter = 0;
+vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:http://localhost:3000/mock-${++blobUrlCounter}`);
+vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
-// --- Service Worker mock ------------------------------------------------
-function makeSwController() {
-  const messageListeners: ((e: MessageEvent) => void)[] = [];
-  const controller = {
-    postMessage: vi.fn((msg: { type: string; path: string; content: string; id: string }) => {
-      // Auto-reply with file-written confirmation
-      const event = new MessageEvent('message', {
-        data: { type: 'file-written', id: msg.id },
-      });
-      messageListeners.forEach((l) => l(event));
-    }),
+class MockWorker {
+  static instances: MockWorker[] = [];
+  static nextResponses: {
+    start?: WorkerMessage;
+    update?: WorkerMessage;
+    force?: WorkerMessage;
+  } = {};
+
+  readonly postMessage = vi.fn((message: { type: string }) => {
+    if (message.type === 'watch-start' && MockWorker.nextResponses.start) {
+      this.emitMessage(MockWorker.nextResponses.start);
+    }
+    if (message.type === 'watch-update' && MockWorker.nextResponses.update) {
+      this.emitMessage(MockWorker.nextResponses.update);
+    }
+    if (message.type === 'force-rebuild' && MockWorker.nextResponses.force) {
+      this.emitMessage(MockWorker.nextResponses.force);
+    }
+  });
+
+  readonly terminate = vi.fn();
+
+  private listeners = {
+    message: new Set<(event: MessageEvent<WorkerMessage>) => void>(),
+    error: new Set<(event: ErrorEvent) => void>(),
   };
 
-  const swScope = {
-    controller,
-    addEventListener: vi.fn((event: string, cb: (e: MessageEvent) => void) => {
-      if (event === 'message') messageListeners.push(cb);
-    }),
-    removeEventListener: vi.fn(),
-    register: vi.fn().mockResolvedValue({}),
-    ready: Promise.resolve({}),
-  };
+  constructor(_url: URL, _options: WorkerOptions) {
+    MockWorker.instances.push(this);
+  }
 
-  return { controller, swScope, messageListeners };
+  addEventListener(type: 'message' | 'error', listener: (event: MessageEvent<WorkerMessage> | ErrorEvent) => void) {
+    if (type === 'message') this.listeners.message.add(listener as (event: MessageEvent<WorkerMessage>) => void);
+    if (type === 'error') this.listeners.error.add(listener as (event: ErrorEvent) => void);
+  }
+
+  removeEventListener(type: 'message' | 'error', listener: (event: MessageEvent<WorkerMessage> | ErrorEvent) => void) {
+    if (type === 'message') this.listeners.message.delete(listener as (event: MessageEvent<WorkerMessage>) => void);
+    if (type === 'error') this.listeners.error.delete(listener as (event: ErrorEvent) => void);
+  }
+
+  emitMessage(message: WorkerMessage) {
+    const event = { data: message } as MessageEvent<WorkerMessage>;
+    for (const listener of this.listeners.message) listener(event);
+  }
+
+  emitError(message: string) {
+    const event = { message } as ErrorEvent;
+    for (const listener of this.listeners.error) listener(event);
+  }
 }
 
-function mountSW(swScope: ReturnType<typeof makeSwController>['swScope']) {
-  Object.defineProperty(navigator, 'serviceWorker', {
-    value: swScope,
-    writable: true,
-    configurable: true,
-  });
-}
+vi.stubGlobal('Worker', MockWorker as unknown as typeof Worker);
 
-// -----------------------------------------------------------------------
+afterEach(() => {
+  vi.clearAllMocks();
+  MockWorker.instances = [];
+  MockWorker.nextResponses = {};
+});
 
-describe('PreviewPipeline – processFile', () => {
-  let vfs: VirtualFS;
-  let pipeline: PreviewPipeline;
-  let callbacks: { onReady: ReturnType<typeof vi.fn>; onError: ReturnType<typeof vi.fn>; onRefresh: ReturnType<typeof vi.fn> };
-  let sw: ReturnType<typeof makeSwController>;
+describe('rewriteSourceForSucraseCompatibility', () => {
+  it('rewrites indexed typeof type expressions that Sucrase misparses', () => {
+    const src = [
+      'const TABS = [{ id: "home" }] as const;',
+      'type Tab = (typeof TABS)[number];',
+      'type TabId = typeof TABS[number]["id"];',
+    ].join('\n');
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vfs = new VirtualFS();
-    callbacks = { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() };
-    sw = makeSwController();
-    mountSW(sw.swScope);
-    pipeline = new PreviewPipeline(vfs, callbacks);
-    // Wire up the SW message handler manually (normally done inside initialize())
-    // so that sendFileToSW promises resolve when the mock controller replies.
-    sw.swScope.addEventListener('message', (pipeline as any).handleSWMessage);
+    const out = rewriteSourceForSucraseCompatibility(src, 'app/home.tsx');
+
+    expect(out).toContain('type Tab = any;');
+    expect(out).toContain('type TabId = any;');
   });
 
-  afterEach(() => {
-    pipeline.destroy();
-  });
+  it('strips hook generics that contain indexed or typeof-based type args', () => {
+    const src = [
+      'import { useRef } from "react";',
+      'const TABS = [{ id: "home" }] as const;',
+      'const refA = useRef<Animated.Value | null>(null);',
+      'const refB = useRef<(typeof TABS)[number] | null>(null);',
+    ].join('\n');
 
-  it('calls transformCode with file content and path', async () => {
-    vfs.writeFile('App.jsx', 'const x = 1;');
-    await pipeline.processFile('App.jsx');
-    expect(transformCode).toHaveBeenCalledWith('const x = 1;', 'App.jsx');
-  });
+    const out = rewriteSourceForSucraseCompatibility(src, 'app/home.tsx');
 
-  it('sends transformed content to SW via postMessage', async () => {
-    vfs.writeFile('App.jsx', 'code');
-    await pipeline.processFile('App.jsx');
-    expect(sw.controller.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'write-file', path: '/App.js' }),
-    );
-  });
-
-  it('falls back to makeErrorModule when transformCode throws', async () => {
-    vi.mocked(transformCode).mockRejectedValueOnce(new Error('SyntaxError'));
-    vfs.writeFile('App.jsx', 'invalid <<<');
-    await pipeline.processFile('App.jsx');
-    expect(makeErrorModule).toHaveBeenCalledWith(expect.stringContaining('SyntaxError'));
-    // Should still send to SW (error module content)
-    expect(sw.controller.postMessage).toHaveBeenCalled();
+    expect(out).toContain('const refA = useRef(null);');
+    expect(out).toContain('const refB = useRef<any | null>(null);');
   });
 });
 
-describe('PreviewPipeline – handleVFSChange debounce', () => {
-  it('debounces rapid VFS changes — only one transformCode call within 150 ms', async () => {
-    vi.useFakeTimers();
+describe('findFirstInvalidBundledModule', () => {
+  it('returns the first invalid local module path and syntax error', () => {
+    const invalid = findFirstInvalidBundledModule({
+      '/ok.js': 'module.exports = 1;',
+      '/broken.js': 'const x = ;',
+    });
+
+    expect(invalid?.id).toBe('/broken.js');
+    expect(invalid?.message).toContain('Unexpected token');
+  });
+
+  it('ignores npm package modules when validating bundled code', () => {
+    const invalid = findFirstInvalidBundledModule({
+      'expo-router': 'import.meta.env',
+      '/App.js': 'module.exports = 1;',
+    });
+
+    expect(invalid).toBeNull();
+  });
+});
+
+describe('createExpoWebPlugin', () => {
+  it('ships the expo-router shim with useFocusEffect', () => {
+    const plugin = createExpoWebPlugin();
+    expect(plugin.shimModules()['expo-router']).toContain('exports.useFocusEffect');
+  });
+
+  it('treats _Layout route files as layouts in the expo-router shim', () => {
+    const plugin = createExpoWebPlugin();
+    const shim = plugin.shimModules()['expo-router'];
+    expect(shim).toContain("if (/^_layout$/i.test(segment)) return '_layout';");
+  });
+});
+
+describe('buildApiRoutesEntry', () => {
+  it('creates a route map for static and dynamic api files', () => {
+    const entry = buildApiRoutesEntry([
+      '/app/api/hello+api.ts',
+      '/app/api/users/[id]+api.ts',
+      '/app/index.tsx',
+    ]);
+
+    expect(entry).toContain('"/api/hello": require("./app/api/hello+api")');
+    expect(entry).toContain('"/api/users/[id]": require("./app/api/users/[id]+api")');
+    expect(entry).toContain('window.__API_ROUTES__');
+  });
+});
+
+describe('PreviewPipeline', () => {
+  it('calls onReady with a blob URL after worker watch-start', async () => {
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
     const vfs = new VirtualFS();
-    const sw = makeSwController();
-    mountSW(sw.swScope);
+    vfs.writeFile('App.jsx', 'export default function App() {}');
+    const onReady = vi.fn();
+
+    const pipeline = new PreviewPipeline(vfs, { onReady, onError: vi.fn(), onRefresh: vi.fn() });
+    await pipeline.initialize();
+
+    expect(onReady).toHaveBeenCalledWith(expect.stringContaining('blob:'));
+    const worker = MockWorker.instances[0];
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'watch-start',
+        files: expect.objectContaining({
+          '/App.jsx': expect.objectContaining({ content: 'export default function App() {}' }),
+        }),
+      }),
+    );
+    pipeline.destroy();
+  });
+
+  it('prefers the first real Expo route over the scaffold blank index on initial load', async () => {
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    const vfs = new VirtualFS();
+    vfs.writeFile('app/_layout.tsx', BLANK_LAYOUT_SOURCE);
+    vfs.writeFile('app/index.tsx', BLANK_INDEX_SOURCE);
+    vfs.writeFile('app/(tabs)/planning.tsx', 'export default function Planning() { return null; }');
+    const onReady = vi.fn();
+
+    const pipeline = new PreviewPipeline(vfs, { onReady, onError: vi.fn(), onRefresh: vi.fn() });
+    await pipeline.initialize();
+
+    expect(onReady).toHaveBeenCalledWith(expect.stringContaining('#/planning'));
+    pipeline.destroy();
+  });
+
+  it('isReady() is false before initialize and true after', async () => {
+    MockWorker.nextResponses.start = { type: 'idle' };
+    const pipeline = new PreviewPipeline(new VirtualFS(), { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
+    expect(pipeline.isReady()).toBe(false);
+    await pipeline.initialize();
+    expect(pipeline.isReady()).toBe(true);
+    pipeline.destroy();
+  });
+
+  it('forwards worker errors to onError', async () => {
+    MockWorker.nextResponses.start = { type: 'error', message: 'No entry file found' };
+    const onError = vi.fn();
+    const pipeline = new PreviewPipeline(new VirtualFS(), { onReady: vi.fn(), onError, onRefresh: vi.fn() });
+
+    await pipeline.initialize();
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'No entry file found' }));
+    pipeline.destroy();
+  });
+
+  it('sends hmr-update postMessage when worker emits a hot update', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = {
+      type: 'hmr-update',
+      update: {
+        requiresReload: false,
+        updatedModules: { '/App.jsx': '/* updated */' },
+        removedModules: [],
+        reverseDepsMap: {},
+      },
+      bundle: '/* bundle */',
+    };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
     const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
+    await pipeline.initialize();
 
-    // Simulate pipeline being SW-ready so VFS subscription is active
-    // Manually subscribe (bypass full initialize)
-    const unsub = vfs.onChange((pipeline as any).handleVFSChange.bind(pipeline));
+    const fakeWindow = { postMessage: vi.fn() } as unknown as Window;
+    pipeline.setTargetWindow(fakeWindow);
 
+    vfs.writeFile('App.jsx', 'v1');
+    vi.advanceTimersByTime(200);
+
+    expect(fakeWindow.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'hmr-update' }),
+      '*',
+    );
+
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('falls back to full reload when worker emits a rebuild', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = { type: 'watch-rebuild', code: '/* new bundle */' };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    vfs.writeFile('App.jsx', 'v1');
+    vi.advanceTimersByTime(200);
+
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('blob:'));
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('preserves the current route as a hash fragment on full reloads', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = { type: 'watch-rebuild', code: '/* new bundle */' };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('app/_layout.tsx', BLANK_LAYOUT_SOURCE);
+    vfs.writeFile('app/index.tsx', BLANK_INDEX_SOURCE);
+    vfs.writeFile('app/(tabs)/planning.tsx', 'export default function Planning() { return null; }');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    pipeline.setTargetWindow({ __ROUTER_SHIM_HASH__: '/planning' } as unknown as Window);
+    vfs.writeFile('app/(tabs)/planning.tsx', 'export default function Planning() { return "updated"; }');
+    vi.advanceTimersByTime(200);
+
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('#/planning'));
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('falls back to full reload when no iframe target is registered', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = {
+      type: 'hmr-update',
+      update: {
+        requiresReload: false,
+        updatedModules: { '/App.jsx': '/* updated */' },
+        removedModules: [],
+        reverseDepsMap: {},
+      },
+      bundle: '/* fallback bundle */',
+    };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    vfs.writeFile('App.jsx', 'v1');
+    vi.advanceTimersByTime(200);
+
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('blob:'));
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('falls back to full reload when hmr update also includes an api bundle', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = {
+      type: 'hmr-update',
+      update: {
+        requiresReload: false,
+        updatedModules: { '/App.jsx': '/* updated */' },
+        removedModules: [],
+        reverseDepsMap: {},
+      },
+      bundle: '/* fallback bundle */',
+      apiBundle: '/* api bundle */',
+    };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    const fakeWindow = { postMessage: vi.fn() } as unknown as Window;
+    pipeline.setTargetWindow(fakeWindow);
+
+    vfs.writeFile('App.jsx', 'v1');
+    vi.advanceTimersByTime(200);
+
+    expect(fakeWindow.postMessage).not.toHaveBeenCalled();
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('blob:'));
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('falls back to full reload when hmr update removes the api bundle', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */', apiBundle: '/* api bundle */' };
+    MockWorker.nextResponses.update = {
+      type: 'hmr-update',
+      update: {
+        requiresReload: false,
+        updatedModules: { '/App.jsx': '/* updated */' },
+        removedModules: [],
+        reverseDepsMap: {},
+      },
+      bundle: '/* fallback bundle */',
+      apiBundle: null,
+    };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    const fakeWindow = { postMessage: vi.fn() } as unknown as Window;
+    pipeline.setTargetWindow(fakeWindow);
+
+    vfs.writeFile('App.jsx', 'v1');
+    vi.advanceTimersByTime(200);
+
+    expect(fakeWindow.postMessage).not.toHaveBeenCalled();
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('blob:'));
+    pipeline.destroy();
+    vi.useRealTimers();
+  });
+
+  it('debounces rapid changes into one watch-update message', async () => {
+    vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = { type: 'watch-rebuild', code: '/* new bundle */' };
+
+    const vfs = new VirtualFS();
+    vfs.writeFile('App.jsx', 'v0');
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
+    await pipeline.initialize();
+    const worker = MockWorker.instances[0];
     vi.clearAllMocks();
 
     vfs.writeFile('App.jsx', 'v1');
     vfs.writeFile('App.jsx', 'v2');
     vfs.writeFile('App.jsx', 'v3');
 
-    // Before debounce fires
-    expect(transformCode).not.toHaveBeenCalled();
-
+    expect(worker.postMessage).not.toHaveBeenCalled();
     vi.advanceTimersByTime(200);
-    await Promise.resolve(); // flush microtasks
+    expect(worker.postMessage).toHaveBeenCalledTimes(1);
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'watch-update',
+        changes: [
+          expect.objectContaining({ path: '/App.jsx', type: 'update', content: 'v3' }),
+        ],
+      }),
+    );
 
-    expect(transformCode).toHaveBeenCalledTimes(1);
-
-    unsub();
     pipeline.destroy();
     vi.useRealTimers();
   });
 
-  it('skips delete events', () => {
+  it('tracks delete events in watch-update messages', async () => {
     vi.useFakeTimers();
-    const vfs = new VirtualFS();
-    const sw = makeSwController();
-    mountSW(sw.swScope);
-    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
-    const unsub = vfs.onChange((pipeline as any).handleVFSChange.bind(pipeline));
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.update = { type: 'watch-rebuild', code: '/* new bundle */' };
 
+    const vfs = new VirtualFS();
     vfs.writeFile('App.jsx', 'x');
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
+    await pipeline.initialize();
+    const worker = MockWorker.instances[0];
     vi.clearAllMocks();
+
     vfs.deleteFile('App.jsx');
-
     vi.advanceTimersByTime(200);
-    expect(transformCode).not.toHaveBeenCalled();
 
-    unsub();
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'watch-update',
+        changes: [expect.objectContaining({ path: '/App.jsx', type: 'delete' })],
+      }),
+    );
+
     pipeline.destroy();
     vi.useRealTimers();
   });
 
-  it('skips non-code files (.png)', () => {
+  it('skips non-code files', async () => {
     vi.useFakeTimers();
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+
     const vfs = new VirtualFS();
-    const sw = makeSwController();
-    mountSW(sw.swScope);
+    vfs.writeFile('App.jsx', 'x');
     const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
-    const unsub = vfs.onChange((pipeline as any).handleVFSChange.bind(pipeline));
+    await pipeline.initialize();
+    const worker = MockWorker.instances[0];
+    vi.clearAllMocks();
 
     vfs.writeFile('logo.png', 'binary');
-
     vi.advanceTimersByTime(200);
-    expect(transformCode).not.toHaveBeenCalled();
 
-    unsub();
+    expect(worker.postMessage).not.toHaveBeenCalled();
     pipeline.destroy();
     vi.useRealTimers();
   });
-});
 
-describe('PreviewPipeline – refreshPreview', () => {
-  it('calls the onRefresh callback', () => {
+  it('forceRefresh posts force-rebuild and resolves after rebuild', async () => {
+    MockWorker.nextResponses.start = { type: 'watch-ready', code: '/* bundle */' };
+    MockWorker.nextResponses.force = { type: 'watch-rebuild', code: '/* refreshed */' };
+    MockWorker.nextResponses.update = { type: 'watch-rebuild', code: '/* updated */' };
     const vfs = new VirtualFS();
-    const sw = makeSwController();
-    mountSW(sw.swScope);
-    const callbacks = { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() };
-    const pipeline = new PreviewPipeline(vfs, callbacks);
-    pipeline.refreshPreview();
-    expect(callbacks.onRefresh).toHaveBeenCalledTimes(1);
+    vfs.writeFile('App.jsx', 'x');
+    const onRefresh = vi.fn();
+    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh });
+    await pipeline.initialize();
+
+    const worker = MockWorker.instances[0];
+    vi.clearAllMocks();
+    vfs.writeFile('App.jsx', 'y');
+    await pipeline.forceRefresh();
+
+    expect(worker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'watch-update',
+        changes: [expect.objectContaining({ path: '/App.jsx', type: 'update', content: 'y' })],
+      }),
+    );
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'force-rebuild' });
+    expect(onRefresh).toHaveBeenCalledWith(expect.stringContaining('blob:'));
     pipeline.destroy();
   });
-});
 
-describe('PreviewPipeline – isReady', () => {
-  it('returns false before initialization', () => {
-    const vfs = new VirtualFS();
-    const sw = makeSwController();
-    mountSW(sw.swScope);
-    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
-    expect(pipeline.isReady()).toBe(false);
+  it('does nothing on forceRefresh before initialize', async () => {
+    const pipeline = new PreviewPipeline(new VirtualFS(), { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
+    await expect(pipeline.forceRefresh()).resolves.toBeUndefined();
     pipeline.destroy();
-  });
-});
-
-describe('PreviewPipeline – sendFileToSW timeout', () => {
-  it('resolves even when SW does not confirm (3 s timeout)', async () => {
-    vi.useFakeTimers();
-    const vfs = new VirtualFS();
-
-    // SW that never replies
-    const silentSw = {
-      controller: { postMessage: vi.fn() },
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      register: vi.fn().mockResolvedValue({}),
-      ready: Promise.resolve({}),
-    };
-    mountSW(silentSw);
-
-    const pipeline = new PreviewPipeline(vfs, { onReady: vi.fn(), onError: vi.fn(), onRefresh: vi.fn() });
-    const sendPromise = (pipeline as any).sendFileToSW('/App.js', 'code');
-
-    // Advance past the 3 s timeout
-    vi.advanceTimersByTime(3100);
-    await sendPromise; // should resolve, not hang
-
-    pipeline.destroy();
-    vi.useRealTimers();
   });
 });

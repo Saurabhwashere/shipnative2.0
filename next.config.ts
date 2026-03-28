@@ -13,18 +13,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['browser-metro'],
   async headers() {
     return [
       {
         source: '/(.*)',
         headers: securityHeaders,
-      },
-      {
-        source: '/hero.mp4',
-        headers: [
-          { key: 'Content-Type', value: 'video/mp4' },
-          { key: 'Accept-Ranges', value: 'bytes' },
-        ],
       },
     ];
   },

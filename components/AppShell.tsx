@@ -9,15 +9,12 @@ import { VFSProvider } from '@/contexts/VFSContext';
 import { PreviewProvider } from '@/contexts/PreviewContext';
 import { useVFS } from '@/contexts/VFSContext';
 import { usePersistence } from '@/lib/hooks/use-persistence';
+import { BLANK_INDEX_SOURCE, BLANK_LAYOUT_SOURCE } from '@/lib/preview-placeholders';
 
-const BLANK_APP = `import React from 'react';
-import { View } from 'react-native';
-export default function App() {
-  return <View style={{ flex: 1, backgroundColor: '#000' }} />;
-}
-`;
-
-const INITIAL_FILES = [{ path: 'App.jsx', content: BLANK_APP }];
+const INITIAL_FILES = [
+  { path: 'app/_layout.tsx', content: BLANK_LAYOUT_SOURCE },
+  { path: 'app/index.tsx',   content: BLANK_INDEX_SOURCE },
+];
 
 interface ProjectSnapshot {
   id: string;

@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type DynamicToolUIPart, type TextUIPart } from 'ai';
 import { useVFS } from '@/contexts/VFSContext';
+import { usePreview } from '@/contexts/PreviewContext';
 import ToolCallCard from './ToolCallCard';
 
 function resizeImageToDataUrl(
@@ -29,18 +30,24 @@ function resizeImageToDataUrl(
 }
 
 const MAX_AUTO_RETRIES = 3;
+const SYNTHETIC_PREVIEW_APP_PATH = 'App.jsx';
+const SYNTHETIC_PREVIEW_MARKER = '// __shipnative_screen_preview__';
 
 // Generates a temporary App.jsx that renders a single screen in isolation.
-function makeScreenPreview(componentName: string, importPath: string): string {
-  return `import React from 'react';
+// Uses React.createElement (no JSX) and a fixed "Screen" import to avoid Sucrase parse errors
+// from lowercase identifiers (e.g. "index", "home") or digit-starting names (e.g. "404").
+function makeScreenPreview(importPath: string): string {
+  return `${SYNTHETIC_PREVIEW_MARKER}
+import React from 'react';
 import { View } from 'react-native';
-import ${componentName} from './${importPath}';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Screen from './${importPath}';
 
 export default function App() {
-  return (
-    <View style={{ flex: 1 }}>
-      <${componentName} />
-    </View>
+  return React.createElement(
+    SafeAreaProvider,
+    null,
+    React.createElement(View, { style: { flex: 1 } }, React.createElement(Screen, null)),
   );
 }
 `;
@@ -67,6 +74,7 @@ interface ChatPanelProps {
 
 export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete, initialPrompt, initialMessages }: ChatPanelProps) {
   const { vfs } = useVFS();
+  const { refreshPreview } = usePreview();
   const [input, setInput] = useState('');
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [referenceImage, setReferenceImage] = useState<{
@@ -85,6 +93,7 @@ export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete
   const [editingTaskLabel, setEditingTaskLabel] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const msgTimestampsRef = useRef<Map<string, number>>(new Map());
+  const wroteSyntheticPreviewRef = useRef(false);
 
   // ── Stable VFS ref ────────────────────────────────────────────────────────
   const vfsRef = useRef(vfs);
@@ -157,17 +166,36 @@ export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete
           const normalizedPath = input.path.replace(/^\/+/, '');
           vfs.writeFile(normalizedPath, input.code);
 
-          // Progressive preview: wrap each screen in isolation until App.jsx is ready
-          const isApp = /^app\.(jsx?|tsx?)$/i.test(normalizedPath.split('/').pop() ?? '');
-          if (isApp) {
+          // Mark "real app ready" when a navigable route exists:
+          // - expo-router: first actual page file (not _layout, not +api)
+          // - legacy:      App.jsx / App.tsx at root
+          const fileName = normalizedPath.split('/').pop() ?? '';
+          const isLegacyRoot = /^App\.(jsx?|tsx?)$/.test(fileName) && !normalizedPath.includes('/');
+          const isExpoPage = normalizedPath.startsWith('app/') &&
+            /\.(jsx?|tsx?)$/.test(normalizedPath) &&
+            !/_layout\.(jsx?|tsx?)$/.test(normalizedPath) &&
+            !/\+api\./.test(normalizedPath);
+
+          if (isLegacyRoot) {
             realAppWrittenRef.current = true;
+          } else if (isExpoPage) {
+            // Progressive preview: render each Expo page in isolation so the user sees
+            // each screen appear during streaming. After the turn ends, forceRefresh()
+            // switches to full Expo Router navigation.
+            const importPath = normalizedPath.replace(/\.(jsx?|tsx?)$/, '');
+            vfs.writeFile(SYNTHETIC_PREVIEW_APP_PATH, makeScreenPreview(importPath));
+            wroteSyntheticPreviewRef.current = true;
+            realAppWrittenRef.current = true; // prevent loose-component preview from overwriting
           } else if (!realAppWrittenRef.current) {
-            const fileName = normalizedPath.split('/').pop() ?? '';
-            const isComponent = /^[A-Z]/.test(fileName) && /\.(jsx?|tsx?)$/.test(fileName);
-            if (isComponent) {
-              const importName = fileName.replace(/\.(jsx?|tsx?)$/, '');
+            // Progressive preview for loose components (non-expo projects).
+            const isPreviewable = /\.(jsx?|tsx?)$/.test(fileName) &&
+              !/_layout\.(jsx?|tsx?)$/.test(fileName) &&
+              !/\+api\./.test(fileName) &&
+              /^[A-Z]/.test(fileName);
+            if (isPreviewable) {
               const importPath = normalizedPath.replace(/\.(jsx?|tsx?)$/, '');
-              vfs.writeFile('App.jsx', makeScreenPreview(importName, importPath));
+              vfs.writeFile(SYNTHETIC_PREVIEW_APP_PATH, makeScreenPreview(importPath));
+              wroteSyntheticPreviewRef.current = true;
             }
           }
         } else if (tp.toolName === 'fixError') {
@@ -179,6 +207,20 @@ export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete
       }
     }
   }, [messages, vfs]);
+
+  // ── Track turn boundaries for retry state ────────────────────────────────
+  // The preview pipeline now performs its own incremental/full rebuild choice
+  // from VFS changes, so forcing a full refresh at the end of every turn just
+  // swaps the iframe blob URL and causes visible flicker.
+  const prevStatusForRefreshRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusForRefreshRef.current !== 'streaming' && status === 'streaming') {
+      // New turn starting — reset retry state so errors in this turn get fresh attempts
+      autoRetryCountRef.current = 0;
+      lastAutoErrorRef.current = null;
+    }
+    prevStatusForRefreshRef.current = status;
+  }, [status]);
 
   // ── Auto-recovery ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -215,10 +257,18 @@ export default function ChatPanel({ className = '', onBeforeSend, onTurnComplete
   const prevStatusRef = useRef(status);
   useEffect(() => {
     if (prevStatusRef.current !== 'ready' && status === 'ready') {
+      const syntheticPreview = vfs.exists(SYNTHETIC_PREVIEW_APP_PATH)
+        ? vfs.getFile(SYNTHETIC_PREVIEW_APP_PATH).content
+        : null;
+      if (wroteSyntheticPreviewRef.current && syntheticPreview?.startsWith(SYNTHETIC_PREVIEW_MARKER)) {
+        vfs.deleteFile(SYNTHETIC_PREVIEW_APP_PATH);
+        wroteSyntheticPreviewRef.current = false;
+        void refreshPreview();
+      }
       onTurnComplete?.(messages);
     }
     prevStatusRef.current = status;
-  }, [status, onTurnComplete, messages]);
+  }, [status, onTurnComplete, messages, vfs, refreshPreview]);
 
   // ── Input handlers ────────────────────────────────────────────────────────
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {

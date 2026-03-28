@@ -95,6 +95,42 @@ function formatFile(f: ProjectFile): string {
   return `--- ${f.path} (${content.split('\n').length} lines) ---\n${content}`;
 }
 
+function isExpoRouteFile(path: string): boolean {
+  return /^app\/.+\.(jsx?|tsx?)$/i.test(path) && !/_layout\.(jsx?|tsx?)$/i.test(path) && !/\+api\.(jsx?|tsx?)$/i.test(path);
+}
+
+function buildExpoRouterWarnings(projectFiles: ProjectFile[]): string[] {
+  const warnings: string[] = [];
+  const paths = projectFiles.map((file) => file.path);
+  const tabLayouts = paths.filter((path) => /^app\/\([^/]+\)\/_layout\.(jsx?|tsx?)$/i.test(path));
+
+  for (const layoutPath of tabLayouts) {
+    const groupDir = layoutPath.replace(/_layout\.(jsx?|tsx?)$/i, '');
+    const groupName = groupDir.split('/')[1] ?? '(group)';
+    const groupScreens = paths.filter((path) => path.startsWith(groupDir) && isExpoRouteFile(path));
+    if (groupScreens.length > 0) continue;
+
+    const topLevelRoutes = paths.filter((path) => /^app\/[^/(][^/]*\.(jsx?|tsx?)$/i.test(path) && isExpoRouteFile(path));
+    if (topLevelRoutes.length > 0) {
+      warnings.push(
+        `Expo Router structure issue: ${layoutPath} exists, but its tab screens are outside ${groupDir}. Move routes like ${topLevelRoutes.slice(0, 3).join(', ')} into ${groupDir} so the tab layout can render them.`,
+      );
+    } else {
+      warnings.push(
+        `Expo Router structure issue: ${layoutPath} exists, but there are no screen files inside ${groupDir}. A tab layout without child routes will render empty output.`,
+      );
+    }
+
+    if (!paths.some((path) => path === `${groupDir}index.tsx` || path === `${groupDir}index.jsx` || path === 'app/index.tsx' || path === 'app/index.jsx')) {
+      warnings.push(
+        `Expo Router structure issue: there is no default index route for ${groupName}. Add ${groupDir}index.tsx or a root redirect so the preview has a clear landing route.`,
+      );
+    }
+  }
+
+  return warnings;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function buildFileContext(
@@ -107,9 +143,14 @@ export function buildFileContext(
 
   if (!projectFiles || projectFiles.length === 0) return '\n\nNo files in the project yet.';
 
+  const routerWarnings = buildExpoRouterWarnings(projectFiles);
+  const warningBlock = routerWarnings.length > 0
+    ? `\n\nProject structure warnings:\n${routerWarnings.map((warning) => `- ${warning}`).join('\n')}`
+    : '';
+
   // Initial build — model needs full picture to write all files correctly
   if (phase === 'initial-build') {
-    return `\n\nCurrent project files:\n${projectFiles.map(formatFile).join('\n\n')}`;
+    return `${warningBlock}\n\nCurrent project files:\n${projectFiles.map(formatFile).join('\n\n')}`;
   }
 
   // Follow-up edit — send only relevant files
@@ -139,5 +180,5 @@ export function buildFileContext(
     ? `\n(${omittedCount} unrelated file${omittedCount > 1 ? 's' : ''} omitted to save context)`
     : '';
 
-  return `\n\nRelevant project files:${omittedNote}\n${selected.map(formatFile).join('\n\n')}`;
+  return `${warningBlock}\n\nRelevant project files:${omittedNote}\n${selected.map(formatFile).join('\n\n')}`;
 }

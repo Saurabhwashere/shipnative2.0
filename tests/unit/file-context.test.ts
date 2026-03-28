@@ -202,4 +202,18 @@ describe('buildFileContext – output format', () => {
       expect(result).toContain('omitted');
     }
   });
+
+  it('surfaces expo router tab-group structure warnings when screens live outside the tabs group', () => {
+    const files = makeFiles([
+      'app/_layout.tsx',
+      'app/(tabs)/_layout.tsx',
+      'app/discover.tsx',
+      'app/likes.tsx',
+      'app/profile.tsx',
+    ]);
+    const result = buildFileContext(files, [userMsg('fix the blank preview')], 'edit');
+
+    expect(result).toContain('Project structure warnings:');
+    expect(result).toContain('app/(tabs)/_layout.tsx exists, but its tab screens are outside app/(tabs)/');
+  });
 });

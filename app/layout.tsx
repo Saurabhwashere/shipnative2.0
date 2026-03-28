@@ -1,25 +1,36 @@
 import type { Metadata } from "next";
-import { Barlow, JetBrains_Mono, Instrument_Serif } from "next/font/google";
+import localFont from "next/font/local";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
-const instrumentSerif = Instrument_Serif({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
+const instrumentSerif = localFont({
+  src: [
+    { path: "./fonts/instrument-serif-regular.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/instrument-serif-italic.ttf", weight: "400", style: "italic" },
+  ],
   variable: "--font-heading",
   display: "swap",
 });
 
-const barlow = Barlow({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+const barlow = localFont({
+  src: [
+    { path: "./fonts/barlow-300.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/barlow-400.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/barlow-500.ttf", weight: "500", style: "normal" },
+    { path: "./fonts/barlow-600.ttf", weight: "600", style: "normal" },
+  ],
   variable: "--font-body",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: [
+    { path: "./fonts/jetbrains-mono-400.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/jetbrains-mono-500.ttf", weight: "500", style: "normal" },
+    { path: "./fonts/jetbrains-mono-600.ttf", weight: "600", style: "normal" },
+    { path: "./fonts/jetbrains-mono-700.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/jetbrains-mono-800.ttf", weight: "800", style: "normal" },
+  ],
   variable: "--font-jetbrains",
   display: "swap",
 });

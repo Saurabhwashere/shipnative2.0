@@ -47,7 +47,7 @@ export const projects = pgTable(
     theme: text('theme'),              // 'light' | 'dark'
     navPattern: text('nav_pattern'),   // 'bottom-tabs' | 'stack'
     isPublic: boolean('is_public').notNull().default(false),
-    publicSlug: text('public_slug').unique(), // nanoid for share URLs
+    publicSlug: text('public_slug').unique(), // share URL slug
     deletedAt: timestamptz('deleted_at'),     // soft delete
     createdAt: timestamptz('created_at').notNull().default(sql`now()`),
     updatedAt: timestamptz('updated_at').notNull().default(sql`now()`),

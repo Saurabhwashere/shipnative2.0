@@ -79,10 +79,11 @@ const SELECT_JS = `
 `;
 
 export default function PhonePreview({ className = '' }: PhonePreviewProps) {
-  const { isReady, previewUrl, previewError, refreshPreview } = usePreview();
+  const { isReady, previewUrl, previewError, refreshPreview, registerIframe } = usePreview();
   const { vfs } = useVFS();
   const [showVillage, setShowVillage] = useState(true);
   const [showNeonGlow, setShowNeonGlow] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
   const [iframeError, setIframeError] = useState<string | null>(null);
   const [frameMode, setFrameMode] = useState<'device' | 'canvas'>('device');
   const [selectMode, setSelectMode] = useState(false);
@@ -93,6 +94,9 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   const selectPromptRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { selectModeRef.current = selectMode; }, [selectMode]);
+
+  // Unregister iframe window on unmount so the pipeline doesn't hold a stale reference
+  useEffect(() => () => registerIframe(null), []);
 
   // Hide village as soon as AI writes the first file to the VFS
   useEffect(() => {
@@ -106,7 +110,9 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
   // Track build status from ChatPanel for neon glow
   useEffect(() => {
     function onBuildStatus(e: Event) {
-      setShowNeonGlow((e as CustomEvent<{ building: boolean }>).detail.building);
+      const building = (e as CustomEvent<{ building: boolean }>).detail.building;
+      setShowNeonGlow(building);
+      setIsBuilding(building);
     }
     window.addEventListener('build-status', onBuildStatus);
     return () => window.removeEventListener('build-status', onBuildStatus);
@@ -174,9 +180,16 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      if (event.data?.type === 'hmr-full-reload') {
+        refreshPreview();
+      }
       if (event.data?.type === 'preview-error') {
         const message: string = event.data.message ?? 'Unknown error';
         setIframeError(message);
+        // Clear the registered iframe window so the pipeline cannot attempt an
+        // HMR patch to a dead iframe (one whose bundle failed to parse/execute).
+        // The next rebuild will fall through to a full blob reload instead.
+        registerIframe(null);
         window.dispatchEvent(
           new CustomEvent('preview-error', { detail: { message } }),
         );
@@ -221,7 +234,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
 
   const loadingSlot = (
     <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center bg-[#1c1c1c]">
-      {previewError ? (
+      {displayError ? (
         <>
           <div className="w-10 h-10 rounded-2xl bg-[--color-red]/10 flex items-center justify-center">
             <svg className="w-5 h-5 text-[--color-red]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,7 +243,7 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
           </div>
           <div>
             <p className="text-[11px] font-semibold text-[--color-red] mb-1">Preview Error</p>
-            <p className="text-[10px] text-[--color-text-dim] font-mono leading-relaxed">{previewError}</p>
+            <p className="text-[10px] text-[--color-text-dim] font-mono leading-relaxed">{displayError}</p>
           </div>
         </>
       ) : (
@@ -252,19 +265,23 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
 
   const iframeSlot = (
     <iframe
-      key={previewUrl}
       ref={iframeRef}
-      src={previewUrl}
+      src={previewUrl ?? ''}
       title="App Preview"
       sandbox="allow-scripts allow-same-origin"
-      onLoad={injectStyles}
+      onLoad={() => {
+        setIframeError(null); // clear previous runtime error on successful reload
+        injectStyles();
+        registerIframe(iframeRef.current?.contentWindow ?? null);
+      }}
+      onError={() => registerIframe(null)}
       style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
     />
   );
 
   return (
     <div
-      className={`flex flex-col items-center ${className}`}
+      className={`flex h-full min-h-0 flex-col ${className}`}
       style={{ background: 'var(--color-deep)' }}
     >
       <style>{`
@@ -281,9 +298,27 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
         }
       `}</style>
 
-      {/* Preview area */}
-      <div className="flex-1 flex items-center justify-center w-full px-4 py-6 overflow-hidden">
-        <div className="flex flex-col items-center">
+      <div className="flex-1 min-h-0 overflow-auto px-4 pt-5 pb-3">
+        <div className="flex min-h-full flex-col items-center justify-center gap-4">
+        <div
+          className={`pointer-events-none transition-all duration-300 ${isBuilding ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
+          aria-hidden={!isBuilding}
+        >
+          <div
+            className="rounded-full px-4 py-1.5 text-[11px] font-medium tracking-[0.22em] uppercase"
+            style={{
+              color: 'rgba(240,240,245,0.9)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
+              border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.24)',
+            }}
+          >
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#34d399] animate-pulse" />
+              <span className="animate-build-label">Building Your App ...</span>
+            </span>
+          </div>
+        </div>
         <div className="relative" style={{ filter: frameMode === 'device' ? 'drop-shadow(0 32px 64px rgba(0,0,0,0.58))' : 'none' }}>
           {/* Neon glow — visible while tasks are pending */}
           {showNeonGlow && (
@@ -308,9 +343,11 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
           <IPhoneFrame mode={frameMode}>
             {showVillage && !displayError
               ? <PixelVillage />
-              : isReady
-                ? iframeSlot
-                : loadingSlot}
+              : displayError
+                ? loadingSlot
+                : isReady
+                  ? iframeSlot
+                  : loadingSlot}
           </IPhoneFrame>
 
           {/* Selection action bar — floats over bottom of phone */}
@@ -357,9 +394,14 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
             </div>
           )}
         </div>
+        </div>
+      </div>
 
-        {/* Floating iOS-style navbar — sits directly below the phone frame */}
-        <div className="flex justify-center" style={{ paddingTop: '52px' }}>
+      <div
+        className="shrink-0 px-4 pb-3 pt-2"
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex justify-center">
         <div
           className="flex items-center gap-1"
           style={{
@@ -435,7 +477,6 @@ export default function PhonePreview({ className = '' }: PhonePreviewProps) {
             </svg>
             Reload
           </button>
-        </div>
         </div>
         </div>
       </div>
